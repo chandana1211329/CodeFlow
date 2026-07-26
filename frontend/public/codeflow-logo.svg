@@ -1,0 +1,133 @@
+<svg width="400" height="300" viewBox="0 0 400 300" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Neon Glow Filter -->
+    <filter id="neonGlowFull" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feComponentTransfer in="blur" result="brightBlur">
+        <feFuncA type="linear" slope="1.8" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="brightBlur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- 3D Face Gradients -->
+    <linearGradient id="topGrad" x1="136" y1="20" x2="264" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="50%" stop-color="#0B132B" />
+      <stop offset="100%" stop-color="#070B19" />
+    </linearGradient>
+
+    <linearGradient id="leftGrad" x1="136" y1="56" x2="200" y2="162" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#0D152D" />
+      <stop offset="50%" stop-color="#080D1F" />
+      <stop offset="100%" stop-color="#03060E" />
+    </linearGradient>
+
+    <linearGradient id="rightGrad" x1="200" y1="56" x2="264" y2="162" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#111A36" />
+      <stop offset="50%" stop-color="#0A0E24" />
+      <stop offset="100%" stop-color="#040714" />
+    </linearGradient>
+
+    <linearGradient id="codeLineGrad" x1="144" y1="80" x2="196" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#D946EF" />
+      <stop offset="45%" stop-color="#A855F7" />
+      <stop offset="80%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#06B6D4" />
+    </linearGradient>
+
+    <linearGradient id="codeSymbolGrad" x1="160" y1="55" x2="240" y2="55" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+
+    <linearGradient id="flowchartGrad" x1="210" y1="70" x2="260" y2="135" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#8B5CF6" />
+    </linearGradient>
+
+    <linearGradient id="edgeCyanBlue" x1="200" y1="20" x2="136" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+
+    <linearGradient id="edgePurple" x1="200" y1="20" x2="264" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="40%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#D946EF" />
+    </linearGradient>
+
+    <linearGradient id="centerVerticalEdge" x1="200" y1="90" x2="200" y2="162" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#A855F7" />
+    </linearGradient>
+
+    <linearGradient id="flowTextGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="50%" stop-color="#3B82F6" />
+      <stop offset="100%" stop-color="#A855F7" />
+    </linearGradient>
+
+    <radialGradient id="bottomGlow" cx="200" cy="175" r="70" fx="200" fy="175" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.45" />
+      <stop offset="50%" stop-color="#8B5CF6" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Floor Glow -->
+  <ellipse cx="200" cy="175" rx="65" ry="22" fill="url(#bottomGlow)" />
+
+  <!-- 3D Cube centered at x=200 -->
+  <g stroke-linejoin="round" stroke-linecap="round">
+    <path d="M 200 90 L 136 56 V 128 L 200 162 Z" fill="url(#leftGrad)" stroke="#1E293B" stroke-width="1" />
+    <path d="M 200 90 L 264 56 V 128 L 200 162 Z" fill="url(#rightGrad)" stroke="#1E293B" stroke-width="1" />
+    <path d="M 200 20 L 264 56 L 200 90 L 136 56 Z" fill="url(#topGrad)" stroke="#1E293B" stroke-width="1" />
+
+    <!-- TOP FACE: </> -->
+    <g stroke="url(#codeSymbolGrad)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" filter="url(#neonGlowFull)">
+      <path d="M 172 50 L 162 55 L 172 60" />
+      <path d="M 194 45 L 206 65" />
+      <path d="M 228 50 L 238 55 L 228 60" />
+    </g>
+
+    <!-- LEFT FACE: Code Lines -->
+    <g stroke="url(#codeLineGrad)" stroke-width="3.5" stroke-linecap="round" filter="url(#neonGlowFull)">
+      <line x1="148" y1="74" x2="188" y2="95" />
+      <line x1="148" y1="86" x2="188" y2="107" />
+      <line x1="148" y1="98" x2="188" y2="119" />
+      <line x1="148" y1="110" x2="188" y2="131" />
+      <line x1="148" y1="122" x2="188" y2="143" />
+    </g>
+
+    <!-- RIGHT FACE: Flowchart -->
+    <g filter="url(#neonGlowFull)">
+      <path d="M 220 76 L 244 64 V 110 M 244 88 L 220 100 V 126" stroke="url(#flowchartGrad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+      <circle cx="220" cy="76" r="5" fill="#0B132B" stroke="#00F0FF" stroke-width="2.5" />
+      <rect x="238" y="58" width="14" height="12" rx="3" fill="#3B82F6" stroke="#00F0FF" stroke-width="1.5" />
+      <rect x="238" y="104" width="14" height="12" rx="3" fill="#8B5CF6" stroke="#00F0FF" stroke-width="1.5" />
+      <rect x="213" y="120" width="14" height="14" rx="3" fill="#00F0FF" stroke="#3B82F6" stroke-width="1.5" />
+    </g>
+
+    <!-- NEON 3D EDGES -->
+    <path d="M 200 20 L 136 56 V 128" stroke="url(#edgeCyanBlue)" stroke-width="2.5" fill="none" filter="url(#neonGlowFull)" />
+    <path d="M 200 20 L 264 56 V 128" stroke="url(#edgePurple)" stroke-width="2.5" fill="none" filter="url(#neonGlowFull)" />
+    <path d="M 200 90 V 162" stroke="url(#centerVerticalEdge)" stroke-width="3" fill="none" filter="url(#neonGlowFull)" />
+    <circle cx="200" cy="90" r="2" fill="#FFFFFF" filter="url(#neonGlowFull)" />
+  </g>
+
+  <!-- Brand Text: CodeFlow -->
+  <text x="200" y="225" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-weight="800" font-size="38">
+    <tspan fill="#FFFFFF">Code</tspan>
+    <tspan fill="url(#flowTextGrad)">Flow</tspan>
+  </text>
+
+  <!-- Tagline: Visualize. Understand. Code. -->
+  <text x="200" y="260" text-anchor="middle" fill="#94A3B8" font-family="system-ui, -apple-system, sans-serif" font-weight="500" font-size="16" letter-spacing="0.5">
+    Visualize. Understand. Code.
+  </text>
+</svg>
