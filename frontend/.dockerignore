@@ -1,0 +1,19 @@
+# Exclude raw source code
+src/
+
+# Dependencies & Build artifacts
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Misc
+.DS_Store
+.env*
+*.log
+
+# IDE
+.idea/
+.vscode/

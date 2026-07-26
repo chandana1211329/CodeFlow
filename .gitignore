@@ -1,0 +1,42 @@
+# CRITICAL SECURITY RULE: Exclude all raw source code files across the entire workspace
+*.go
+*.ts
+*.tsx
+*.py
+*.java
+*.c
+*.h
+*.cpp
+
+# Ignore raw source directories
+frontend/src/
+scratch/
+
+# Ignore environment variables & secrets
+.env
+.env.*
+*.env
+
+# Ignore node_modules & local caches
+node_modules/
+.npm/
+.yarn/
+
+# Ignore local database & test execution files
+*.db
+*.mp4
+test_*.py
+DoublyLinkedList.java
+LinkedList.java
+
+# Ignore logs & OS metadata
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# ALLOW ONLY PRE-COMPILED ASSETS AND CONTAINER CONFIGURATIONS
+!frontend/dist/
+!frontend/dist/**
+!backend/server
