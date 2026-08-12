@@ -1,243 +1,200 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { Float, RoundedBox, Sparkles, MeshWobbleMaterial } from '@react-three/drei';
-import * as THREE from 'three';
-import { Code, Cpu, Database, Eye, Terminal, Play, CheckCircle2, ArrowRight } from 'lucide-react';
-
-// 3D Animated Scene elements inside R3F Canvas
-const SceneContent = () => {
-  const groupRef = useRef<THREE.Group>(null);
-  const cubeRef1 = useRef<THREE.Mesh>(null);
-  const cubeRef2 = useRef<THREE.Mesh>(null);
-  const cubeRef3 = useRef<THREE.Mesh>(null);
-
-  useFrame((state, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.15;
-    }
-    if (cubeRef1.current) {
-      cubeRef1.current.rotation.x += delta * 0.4;
-      cubeRef1.current.rotation.y += delta * 0.5;
-    }
-    if (cubeRef2.current) {
-      cubeRef2.current.rotation.x -= delta * 0.3;
-      cubeRef2.current.rotation.z += delta * 0.4;
-    }
-    if (cubeRef3.current) {
-      cubeRef3.current.rotation.y += delta * 0.6;
-    }
-  });
-
-  return (
-    <>
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[10, 10, 5]} intensity={1.2} color="#00F0FF" />
-      <pointLight position={[-10, -10, -5]} intensity={1} color="#D946EF" />
-
-      <Sparkles count={40} scale={6} size={2.5} speed={0.4} color="#60A5FA" />
-
-      <group ref={groupRef}>
-        {/* Floating 3D Memory Cube 1 (Stack Node) */}
-        <Float speed={2} rotationIntensity={0.5} floatIntensity={1.2}>
-          <mesh ref={cubeRef1} position={[-1.8, 1, 0]}>
-            <boxGeometry args={[0.9, 0.9, 0.9]} />
-            <MeshWobbleMaterial factor={0.15} speed={1.5} color="#3B82F6" roughness={0.2} metalness={0.8} />
-          </mesh>
-        </Float>
-
-        {/* Floating 3D Memory Cube 2 (Heap Object) */}
-        <Float speed={2.5} rotationIntensity={0.6} floatIntensity={1.5}>
-          <mesh ref={cubeRef2} position={[1.8, -0.8, 0.5]}>
-            <boxGeometry args={[1.1, 1.1, 1.1]} />
-            <MeshWobbleMaterial factor={0.2} speed={2} color="#8B5CF6" roughness={0.1} metalness={0.9} />
-          </mesh>
-        </Float>
-
-        {/* Floating 3D Data Node 3 */}
-        <Float speed={1.8} rotationIntensity={0.4} floatIntensity={0.8}>
-          <mesh ref={cubeRef3} position={[0, -1.5, -1]}>
-            <octahedronGeometry args={[0.7]} />
-            <meshStandardMaterial color="#EC4899" wireframe roughness={0.1} />
-          </mesh>
-        </Float>
-
-        {/* Central Core Sphere */}
-        <mesh position={[0, 0.2, -0.5]}>
-          <sphereGeometry args={[0.7, 32, 32]} />
-          <meshStandardMaterial color="#00F0FF" roughness={0.3} metalness={0.7} emissive="#004466" emissiveIntensity={0.5} />
-        </mesh>
-      </group>
-    </>
-  );
-};
+import { Play } from 'lucide-react';
 
 export const CodeFlowHeroVisual: React.FC = () => {
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeLine, setActiveLine] = useState<number>(0);
 
-  const steps = [
-    { name: 'CODE', icon: Code, color: 'from-cyan-500 to-blue-500', desc: 'Python Script Input' },
-    { name: 'EXECUTION', icon: Cpu, color: 'from-blue-500 to-indigo-500', desc: 'Traced Line-by-Line' },
-    { name: 'MEMORY', icon: Database, color: 'from-indigo-500 to-purple-500', desc: 'Stack & Heap Allocation' },
-    { name: 'VISUALIZATION', icon: Eye, color: 'from-purple-500 to-pink-500', desc: 'Interactive 3D Engine' },
-    { name: 'OUTPUT', icon: Terminal, color: 'from-pink-500 to-rose-500', desc: 'Console & Dynamic State' },
-  ];
-
+  // Cycle through code steps for live dynamic animation
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveStep((prev) => (prev + 1) % steps.length);
+      setActiveLine((prev) => (prev + 1) % 5);
     }, 2500);
     return () => clearInterval(timer);
   }, []);
 
   return (
-    <div className="relative w-full max-w-xl mx-auto lg:max-w-none">
-      {/* Glow Backdrop */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/30 via-purple-600/20 to-pink-600/30 blur-[100px] -z-10 rounded-full" />
+    <div className="relative w-full h-full min-h-[340px] lg:min-h-[420px] flex items-center justify-center select-none overflow-visible">
+      {/* Background Neon Ambient Glows */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 via-indigo-600/15 to-purple-600/20 blur-[90px] rounded-full -z-10" />
 
-      {/* Main Glass Workspace Container */}
-      <div className="relative rounded-2xl glass border border-white/10 p-4 md:p-6 shadow-2xl backdrop-blur-xl overflow-hidden">
-        {/* Container Header Bar */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10 mb-4">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-red-500/80" />
-            <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-            <div className="w-3 h-3 rounded-full bg-green-500/80" />
-            <span className="ml-2 text-xs font-mono text-gray-400">codeflow-execution-engine.v3d</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live Visualizer
-            </span>
-          </div>
+      {/* 3D PERSPECTIVE STAGE */}
+      <div className="relative w-full max-w-[620px] aspect-[16/11] flex items-center justify-center">
+        {/* Isometric Grid Floor Lines */}
+        <div className="absolute inset-0 opacity-30 pointer-events-none -z-10">
+          <svg className="w-full h-full" viewBox="0 0 600 420" fill="none">
+            <g stroke="#3b82f6" strokeWidth="0.8" strokeDasharray="4 4" opacity="0.6">
+              <line x1="0" y1="360" x2="600" y2="360" />
+              <line x1="0" y1="390" x2="600" y2="390" />
+              <line x1="50" y1="300" x2="550" y2="420" />
+              <line x1="150" y1="300" x2="450" y2="420" />
+              <line x1="550" y1="300" x2="50" y2="420" />
+              <line x1="450" y1="300" x2="150" y2="420" />
+            </g>
+          </svg>
         </div>
 
-        {/* Top Concept Pipeline Indicator */}
-        <div className="mb-4 bg-slate-950/70 rounded-xl p-3 border border-white/5">
-          <div className="text-[10px] uppercase font-bold tracking-wider text-gray-400 mb-2 flex items-center justify-between">
-            <span>Execution Pipeline</span>
-            <span className="text-blue-400 font-mono">Step {activeStep + 1} of 5</span>
-          </div>
-
-          <div className="grid grid-cols-5 gap-1.5">
-            {steps.map((step, idx) => {
-              const IconComponent = step.icon;
-              const isActive = idx === activeStep;
-              const isPast = idx < activeStep;
-
-              return (
-                <div
-                  key={step.name}
-                  onClick={() => setActiveStep(idx)}
-                  className={`cursor-pointer transition-all duration-300 rounded-lg p-1.5 flex flex-col items-center justify-center text-center ${
-                    isActive
-                      ? `bg-gradient-to-r ${step.color} text-white shadow-lg scale-105`
-                      : isPast
-                      ? 'bg-white/10 text-gray-300'
-                      : 'bg-white/5 text-gray-500 hover:bg-white/10'
-                  }`}
-                >
-                  <IconComponent className={`w-3.5 h-3.5 mb-1 ${isActive ? 'animate-bounce' : ''}`} />
-                  <span className="text-[9px] font-bold tracking-tight truncate w-full">{step.name}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Central Visual Showcase: Split 3D Canvas & Code Card */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 h-64 md:h-72">
-          {/* 3D Canvas Box */}
-          <div className="relative rounded-xl bg-slate-950/90 border border-blue-500/20 overflow-hidden flex items-center justify-center">
-            {/* Background Mesh Overlay */}
-            <div className="absolute inset-0 bg-[radial-gradient(#3b82f6_1px,transparent_1px)] [background-size:16px_16px] opacity-20" />
-            
-            {/* R3F 3D Canvas */}
-            <div className="absolute inset-0">
-              <Canvas camera={{ position: [0, 0, 5], fov: 45 }}>
-                <SceneContent />
-              </Canvas>
+        {/* 1. CODE EDITOR CARD (Left 3D Floating Window) */}
+        <motion.div
+          initial={{ opacity: 0, x: -30, y: 10 }}
+          animate={{ opacity: 1, x: 0, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="absolute left-[2%] top-[8%] w-[52%] bg-[#080d1e]/90 backdrop-blur-xl border border-blue-500/30 rounded-2xl p-4 shadow-2xl shadow-blue-950/80 z-20"
+          style={{
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          }}
+        >
+          {/* Header Window Bar */}
+          <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+              <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
             </div>
-
-            {/* Overlaid Label Card */}
-            <div className="absolute bottom-3 left-3 right-3 bg-slate-900/80 backdrop-blur-md border border-white/10 rounded-lg p-2 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
-                <span className="font-mono text-cyan-300 text-[11px]">3D Memory Graph</span>
-              </div>
-              <span className="text-[10px] text-gray-400 font-mono">Stack & Heap Synced</span>
+            <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400">
+              <Play className="w-2.5 h-2.5 fill-blue-400" />
             </div>
           </div>
 
-          {/* Animated Code & State Card */}
-          <div className="rounded-xl bg-slate-950/90 border border-white/10 p-3 font-mono text-xs flex flex-col justify-between overflow-hidden">
-            <div>
-              <div className="flex items-center justify-between text-[11px] text-gray-400 pb-2 mb-2 border-b border-white/5">
-                <span className="flex items-center gap-1 text-purple-400">
-                  <Code className="w-3.5 h-3.5" /> code_sample.py
-                </span>
-                <span className="text-[10px] text-emerald-400">Step Tracing</span>
-              </div>
-
-              {/* Code lines with active line highlight */}
-              <div className="space-y-1 text-[11px]">
-                <div className={`px-2 py-0.5 rounded transition-colors ${activeStep === 0 ? 'bg-blue-500/20 text-blue-300 font-bold border-l-2 border-blue-400' : 'text-gray-400'}`}>
-                  <span className="text-gray-600 select-none mr-2">1</span>
-                  <span className="text-purple-400 font-semibold">def</span> <span className="text-blue-300">visualize_flow</span>():
-                </div>
-                <div className={`px-2 py-0.5 rounded transition-colors ${activeStep === 1 || activeStep === 2 ? 'bg-purple-500/20 text-purple-200 font-bold border-l-2 border-purple-400' : 'text-gray-400'}`}>
-                  <span className="text-gray-600 select-none mr-2">2</span>
-                  &nbsp;&nbsp;stack_vars = [<span className="text-amber-300">10</span>, <span className="text-amber-300">20</span>, <span className="text-amber-300">30</span>]
-                </div>
-                <div className={`px-2 py-0.5 rounded transition-colors ${activeStep === 3 ? 'bg-pink-500/20 text-pink-200 font-bold border-l-2 border-pink-400' : 'text-gray-400'}`}>
-                  <span className="text-gray-600 select-none mr-2">3</span>
-                  &nbsp;&nbsp;render_3d_memory(stack_vars)
-                </div>
-                <div className={`px-2 py-0.5 rounded transition-colors ${activeStep === 4 ? 'bg-emerald-500/20 text-emerald-200 font-bold border-l-2 border-emerald-400' : 'text-gray-400'}`}>
-                  <span className="text-gray-600 select-none mr-2">4</span>
-                  &nbsp;&nbsp;<span className="text-purple-400 font-semibold">return</span> <span className="text-emerald-300">"Logic Understood!"</span>
-                </div>
-              </div>
+          {/* Python Code Snippet */}
+          <div className="font-mono text-xs sm:text-sm leading-relaxed space-y-1 text-gray-300">
+            <div className={`px-1.5 py-0.5 rounded transition-colors ${activeLine === 0 ? 'bg-blue-500/20 text-blue-300 font-bold' : ''}`}>
+              <span className="text-purple-400 font-semibold">def</span> <span className="text-blue-400">add</span>(a, b):
             </div>
-
-            {/* Live Variable Memory Inspector */}
-            <div className="mt-3 bg-slate-900/90 rounded-lg p-2 border border-white/5 text-[10px]">
-              <div className="text-gray-400 mb-1 flex justify-between font-sans">
-                <span className="font-semibold text-gray-300">Variable State Tracker</span>
-                <span className="text-blue-400 font-mono">0x00FF8C</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
-                <div className="bg-slate-950 p-1.5 rounded border border-blue-500/20">
-                  <span className="text-gray-400">stack_vars: </span>
-                  <span className="text-blue-400 font-bold">[10, 20, 30]</span>
-                </div>
-                <div className="bg-slate-950 p-1.5 rounded border border-purple-500/20">
-                  <span className="text-gray-400">execution: </span>
-                  <span className="text-emerald-400 font-bold">Step {activeStep + 1}/5</span>
-                </div>
-              </div>
+            <div className={`px-1.5 py-0.5 rounded transition-colors ${activeLine === 1 ? 'bg-purple-500/20 text-purple-300 font-bold' : ''}`}>
+              &nbsp;&nbsp;c = a + b
+            </div>
+            <div className={`px-1.5 py-0.5 rounded transition-colors ${activeLine === 2 ? 'bg-indigo-500/20 text-indigo-300 font-bold' : ''}`}>
+              &nbsp;&nbsp;<span className="text-purple-400 font-semibold">return</span> c
+            </div>
+            <div className="h-2" />
+            <div className={`px-1.5 py-0.5 rounded transition-colors ${activeLine === 3 ? 'bg-cyan-500/20 text-cyan-300 font-bold' : ''}`}>
+              result = <span className="text-blue-400">add</span>(<span className="text-amber-400">5</span>, <span className="text-amber-400">7</span>)
+            </div>
+            <div className={`px-1.5 py-0.5 rounded transition-colors ${activeLine === 4 ? 'bg-pink-500/20 text-pink-300 font-bold' : ''}`}>
+              <span className="text-purple-400">print</span>(result)
             </div>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Live Output Terminal Bar */}
-        <div className="mt-4 bg-slate-950 rounded-xl p-3 border border-emerald-500/20 flex items-center justify-between text-xs font-mono">
-          <div className="flex items-center gap-2 truncate">
-            <Terminal className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="text-emerald-400 font-bold">&gt;</span>
-            <span className="text-gray-300 truncate">
-              {activeStep === 0 && 'Parsing source code & mapping AST nodes...'}
-              {activeStep === 1 && 'Traced execution step 2: memory allocated'}
-              {activeStep === 2 && 'Variable stack_vars pushed to memory frame'}
-              {activeStep === 3 && 'Constructing 3D memory environment...'}
-              {activeStep === 4 && 'Output: Logic transformation complete [OK]'}
-            </span>
+        {/* 2. GLOWING NEON LASER CONNECTOR PATHS (SVG Lines) */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible" viewBox="0 0 600 420">
+          <defs>
+            <linearGradient id="laserGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#38bdf8" />
+              <stop offset="50%" stopColor="#a855f7" />
+              <stop offset="100%" stopColor="#ec4899" />
+            </linearGradient>
+            <filter id="glowEffect" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+
+          {/* Path to Memory */}
+          <path
+            d="M 310 160 C 370 160, 390 70, 440 60"
+            fill="none"
+            stroke="url(#laserGrad1)"
+            strokeWidth="3"
+            filter="url(#glowEffect)"
+          />
+          <circle cx="440" cy="60" r="4" fill="#38bdf8" filter="url(#glowEffect)" />
+
+          {/* Path from Memory to Stack */}
+          <path
+            d="M 490 145 C 490 170, 480 185, 460 210"
+            fill="none"
+            stroke="url(#laserGrad1)"
+            strokeWidth="3"
+            filter="url(#glowEffect)"
+          />
+          <circle cx="460" cy="210" r="4" fill="#a855f7" filter="url(#glowEffect)" />
+
+          {/* Path from Stack to Output */}
+          <path
+            d="M 500 290 C 530 310, 520 330, 520 350"
+            fill="none"
+            stroke="url(#laserGrad1)"
+            strokeWidth="3"
+            filter="url(#glowEffect)"
+          />
+          <circle cx="520" cy="350" r="4" fill="#ec4899" filter="url(#glowEffect)" />
+        </svg>
+
+        {/* 3. MEMORY 3D CARD (Top Right) */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+          className="absolute right-[4%] top-[2%] w-[36%] bg-[#0c132c]/95 backdrop-blur-xl border border-cyan-500/40 rounded-2xl p-3 shadow-xl z-20"
+          style={{
+            boxShadow: '0 15px 40px rgba(14, 165, 233, 0.25)',
+          }}
+        >
+          <div className="text-center font-bold text-xs text-cyan-300 pb-1.5 border-b border-cyan-500/20 mb-2">
+            Memory
           </div>
-          <span className="hidden sm:flex items-center gap-1 text-[10px] text-gray-500 shrink-0 ml-2">
-            <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Synced
-          </span>
-        </div>
+          <div className="font-mono text-xs space-y-1.5 text-gray-200">
+            <div className="flex justify-between px-2 py-0.5 rounded bg-blue-950/50 border border-blue-500/20">
+              <span className="text-blue-300 font-semibold">a</span>
+              <span className="text-cyan-400 font-bold">5</span>
+            </div>
+            <div className="flex justify-between px-2 py-0.5 rounded bg-blue-950/50 border border-blue-500/20">
+              <span className="text-blue-300 font-semibold">b</span>
+              <span className="text-cyan-400 font-bold">7</span>
+            </div>
+            <div className="flex justify-between px-2 py-0.5 rounded bg-purple-950/50 border border-purple-500/20">
+              <span className="text-purple-300 font-semibold">c</span>
+              <span className="text-purple-300 font-bold">12</span>
+            </div>
+            <div className="flex justify-between px-2 py-0.5 rounded bg-indigo-950/50 border border-indigo-500/20">
+              <span className="text-indigo-300 font-semibold">result</span>
+              <span className="text-emerald-400 font-bold">12</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 4. STACK 3D CARD (Middle Right) */}
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.8, delay: 0.4 }}
+          className="absolute right-[10%] top-[46%] w-[34%] bg-[#120d28]/95 backdrop-blur-xl border border-purple-500/40 rounded-2xl p-3 shadow-xl z-20"
+          style={{
+            boxShadow: '0 15px 40px rgba(168, 85, 247, 0.25)',
+          }}
+        >
+          <div className="text-center font-bold text-xs text-purple-300 pb-1.5 border-b border-purple-500/20 mb-2">
+            Stack
+          </div>
+          <div className="font-mono text-[11px] leading-tight space-y-1 text-purple-200">
+            <div className="font-bold text-purple-300">add()</div>
+            <div className="pl-2 text-gray-300">c = a + b</div>
+            <div className="pl-2 text-purple-400">return c</div>
+          </div>
+        </motion.div>
+
+        {/* 5. OUTPUT 3D CARD (Bottom Right) */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.6 }}
+          className="absolute right-[2%] bottom-[4%] w-[26%] bg-[#081826]/95 backdrop-blur-xl border border-emerald-500/40 rounded-2xl p-3 shadow-xl z-20"
+          style={{
+            boxShadow: '0 15px 35px rgba(16, 185, 129, 0.25)',
+          }}
+        >
+          <div className="text-center font-bold text-xs text-emerald-300 pb-1 mb-1">
+            Output
+          </div>
+          <div className="text-center font-mono text-sm font-extrabold text-emerald-400 bg-emerald-950/60 rounded py-1 border border-emerald-500/30">
+            12
+          </div>
+        </motion.div>
       </div>
     </div>
   );
