@@ -15,6 +15,13 @@ const LandingPage: React.FC = () => {
     navigate('/');
   };
 
+  const scrollToSection = (id: string) => {
+    const elem = document.getElementById(id);
+    if (elem) {
+      elem.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#020617] overflow-hidden">
       {/* Background Blobs */}
@@ -29,8 +36,8 @@ const LandingPage: React.FC = () => {
           <CodeFlowLogo variant="horizontal" size="md" />
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
-          <a href="#features" className="hover:text-white transition-colors">Features</a>
-          <a href="#how-it-works" className="hover:text-white transition-colors">How it Works</a>
+          <button onClick={() => scrollToSection('features')} className="hover:text-white transition-colors cursor-pointer">Features</button>
+          <button onClick={() => scrollToSection('how-it-works')} className="hover:text-white transition-colors cursor-pointer">How it Works</button>
         </div>
         <div className="flex items-center gap-4">
           <Link 
