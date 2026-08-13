@@ -9,6 +9,7 @@ import { ExecutionStep } from '../types';
 import { executeCode } from '../api';
 import { InputCollectionModal } from '../components/InputCollectionModal';
 import CodeFlowLogo from '../components/CodeFlowLogo';
+import { trackEvent } from '../utils/analytics';
 
 const detectInputsInCode = (codeText: string, lang: string): string[] => {
   const prompts: string[] = [];
@@ -84,6 +85,12 @@ count = len(arr)`;
     setError(null);
     setSteps([]);
     setCurrentStepIndex(-1);
+
+    trackEvent('run_code', {
+      language,
+      code_length: code.length,
+      has_inputs: collectedInputs.length > 0,
+    });
 
     try {
       const result = await executeCode(code, language, collectedInputs);
@@ -181,6 +188,7 @@ int main() {
     setSteps([]);
     setCurrentStepIndex(-1);
     setError(null);
+    trackEvent('select_language', { language: newLang });
   };
 
   return (

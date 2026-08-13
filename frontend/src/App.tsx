@@ -9,6 +9,7 @@ import Learn from './pages/Learn';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import AnalyticsTracker from './components/AnalyticsTracker';
 
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
@@ -18,6 +19,7 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       <Router>
+        <AnalyticsTracker />
         <Routes>
           <Route path="/" element={<IntroLandingPage />} />
           <Route path="/app" element={<LandingPage />} />
