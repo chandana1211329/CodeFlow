@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Compass, Grid, GitBranch, ArrowLeft, Home, BookOpen, Search, Filter, Sparkles
+  Compass, Grid, GitBranch, Home, BookOpen, Sparkles
 } from 'lucide-react';
 import CodeFlowLogo from '../components/CodeFlowLogo';
 import RoadmapBreadcrumbs from '../components/careerRoadmap/RoadmapBreadcrumbs';
@@ -14,17 +14,14 @@ import {
   ALL_CAREER_CATEGORIES, 
   findNodeByPath, 
   CareerNode, 
-  buildNodePathUrl,
-  NodeProgressStatus
+  buildNodePathUrl
 } from '../data/careerRoadmap';
 
 export const CareerRoadmapPage: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const params = useParams();
 
-  // Extract path slugs from location pathname or wildcard parameter
-  // HashRouter gives location.pathname as e.g. "/career-roadmap/software-engineering/full-stack"
+  // Extract path slugs from location pathname
   const rawPath = location.pathname.replace(/^\/career-roadmap\/?/, '');
   const pathSlugs = rawPath ? rawPath.split('/').filter(Boolean) : [];
 
@@ -38,39 +35,11 @@ export const CareerRoadmapPage: React.FC = () => {
   // Selected node for Detail Drawer
   const [selectedDetailNode, setSelectedDetailNode] = useState<CareerNode | null>(null);
 
-  // User progress state map from localStorage: node.id -> NodeProgressStatus
-  const [progressMap, setProgressMap] = useState<Record<string, NodeProgressStatus>>({});
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem('codeflow_roadmap_progress');
-      if (saved) {
-        setProgressMap(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.error('Failed to load progress state', e);
-    }
-  }, []);
-
-  const updateNodeProgress = (nodeId: string, status: NodeProgressStatus) => {
-    const updated = { ...progressMap, [nodeId]: status };
-    setProgressMap(updated);
-    try {
-      localStorage.setItem('codeflow_roadmap_progress', JSON.stringify(updated));
-    } catch (e) {
-      console.error('Failed to save progress state', e);
-    }
-  };
-
   const handleOpenNode = (node: CareerNode) => {
-    // If node has children, navigate deeper down the path
     if (node.children && node.children.length > 0) {
-      const targetBreadcrumbs = [...breadcrumbs, node];
-      // If we are at root level, root node is category itself
       const targetNodes = currentNode ? [...breadcrumbs, node] : [node];
       navigate(buildNodePathUrl(targetNodes));
     } else {
-      // Leaf node: open detail drawer
       setSelectedDetailNode(node);
     }
   };
@@ -196,7 +165,6 @@ export const CareerRoadmapPage: React.FC = () => {
                 node={node}
                 index={idx}
                 onOpenNode={handleOpenNode}
-                progressStatus={progressMap[node.id] || 'not_started'}
               />
             ))}
           </div>
@@ -227,8 +195,6 @@ export const CareerRoadmapPage: React.FC = () => {
           <RoadmapDetailView
             node={selectedDetailNode}
             onClose={() => setSelectedDetailNode(null)}
-            progressStatus={progressMap[selectedDetailNode.id] || 'not_started'}
-            onUpdateProgress={(status) => updateNodeProgress(selectedDetailNode.id, status)}
           />
         )}
       </AnimatePresence>

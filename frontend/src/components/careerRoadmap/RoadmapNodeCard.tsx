@@ -6,7 +6,7 @@ import {
   Microscope, Sparkles, Layers, BookOpen, ChevronRight,
   Terminal, Layout, Server, Smartphone, Gamepad2, GitBranch,
   BarChart2, TrendingUp, Zap, MessageSquare, Eye, HardDrive,
-  Repeat, Activity, Compass, Building, CheckSquare
+  Repeat, Activity, Compass, Building
 } from 'lucide-react';
 import { CareerNode } from '../../data/careerRoadmap';
 
@@ -14,7 +14,6 @@ interface RoadmapNodeCardProps {
   node: CareerNode;
   onOpenNode: (node: CareerNode) => void;
   index?: number;
-  progressStatus?: 'not_started' | 'in_progress' | 'completed';
 }
 
 const ICON_MAP: Record<string, React.ReactNode> = {
@@ -57,8 +56,7 @@ function BrainIcon({ className }: { className?: string }) {
 export const RoadmapNodeCard: React.FC<RoadmapNodeCardProps> = ({
   node,
   onOpenNode,
-  index = 0,
-  progressStatus = 'not_started'
+  index = 0
 }) => {
   const childCount = node.children?.length ?? 0;
   const iconElement = node.icon && ICON_MAP[node.icon] ? ICON_MAP[node.icon] : <Code className="text-blue-400" />;
@@ -77,20 +75,11 @@ export const RoadmapNodeCard: React.FC<RoadmapNodeCardProps> = ({
           {iconElement}
         </div>
 
-        <div className="flex items-center gap-2">
-          {node.type && (
-            <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-slate-800 text-gray-300 border border-white/10">
-              {node.type}
-            </span>
-          )}
-
-          {progressStatus === 'completed' && (
-            <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-              <CheckSquare size={12} />
-              Done
-            </span>
-          )}
-        </div>
+        {node.type && (
+          <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-1 rounded-full bg-slate-800 text-gray-300 border border-white/10">
+            {node.type}
+          </span>
+        )}
       </div>
 
       {/* Content */}

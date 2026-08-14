@@ -1,23 +1,19 @@
 import React from 'react';
 import { 
-  X, ExternalLink, BookOpen, CheckSquare, Clock, ArrowRight,
+  X, ExternalLink, BookOpen, ArrowRight,
   Sparkles, Wrench, Shield, CheckCircle2, FileCode, Layers, HelpCircle, UserCheck
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { CareerNode, NodeProgressStatus } from '../../data/careerRoadmap';
+import { CareerNode } from '../../data/careerRoadmap';
 
 interface RoadmapDetailViewProps {
   node: CareerNode | null;
   onClose: () => void;
-  progressStatus: NodeProgressStatus;
-  onUpdateProgress: (status: NodeProgressStatus) => void;
 }
 
 export const RoadmapDetailView: React.FC<RoadmapDetailViewProps> = ({
   node,
-  onClose,
-  progressStatus,
-  onUpdateProgress
+  onClose
 }) => {
   const navigate = useNavigate();
 
@@ -68,43 +64,6 @@ export const RoadmapDetailView: React.FC<RoadmapDetailViewProps> = ({
             {node.description}
           </p>
         )}
-      </div>
-
-      {/* Progress Status Bar */}
-      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-        <div className="flex items-center gap-2 text-sm font-semibold text-gray-300">
-          <Clock size={18} className="text-blue-400" />
-          <span>My Learning Progress:</span>
-        </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          {(['not_started', 'in_progress', 'completed'] as NodeProgressStatus[]).map((status) => {
-            const isActive = progressStatus === status;
-            const labels: Record<NodeProgressStatus, string> = {
-              not_started: 'Not Started',
-              in_progress: 'In Progress',
-              completed: 'Completed'
-            };
-
-            return (
-              <button
-                key={status}
-                onClick={() => onUpdateProgress(status)}
-                className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  isActive
-                    ? status === 'completed'
-                      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
-                      : status === 'in_progress'
-                      ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
-                      : 'bg-blue-600 text-white shadow-lg shadow-blue-600/30'
-                    : 'bg-white/5 hover:bg-white/10 text-gray-400'
-                }`}
-              >
-                {labels[status]}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* Linked CodeFlow Course Banner */}
