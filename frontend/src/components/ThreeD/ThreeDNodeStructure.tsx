@@ -1,0 +1,571 @@
+import React, { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { Text, Sphere, Line, RoundedBox } from '@react-three/drei';
+import * as THREE from 'three';
+
+interface NodeData {
+  val?: any;
+  value?: any;
+  next?: NodeData;
+  prev?: NodeData;
+  left?: NodeData;
+  right?: NodeData;
+  _type?: string;
+  [key: string]: any;
+}
+
+interface PositionedNode {
+  id: string;
+  val: any;
+  position: [number, number, number];
+  address: string;
+  nextAddress: string;
+  prevAddress: string | null;
+  isLinkedList: boolean;
+  isDoubly: boolean;
+  children: { childId: string; type: string }[];
+}
+
+interface ThreeDNodeStructureProps {
+  name: string;
+  root: NodeData;
+  yOffset: number;
+}
+
+// Deterministic address generator
+const formatAddress = (nodeId: string | number): string => {
+  if (typeof nodeId === 'number') {
+    return '0x' + nodeId.toString(16).toUpperCase().slice(-4);
+  }
+  let num = 0;
+  const str = String(nodeId);
+  for (let i = 0; i < str.length; i++) {
+    num = (num << 5) - num + str.charCodeAt(i);
+    num |= 0;
+  }
+  return '0x' + Math.abs(num).toString(16).toUpperCase().slice(-4).padStart(4, '0');
+};
+
+const getNextNode = (node: any): any | null => {
+  if (!node || typeof node !== 'object') return null;
+  const nextKeys = ['next', 'link', 'succ'];
+  for (const key of nextKeys) {
+    if (key in node && node[key] !== null && typeof node[key] === 'object') {
+      return node[key];
+    }
+  }
+  if (node._type) {
+    for (const [k, v] of Object.entries(node)) {
+      if (k !== 'prev' && k !== 'previous' && k !== 'left' && k !== 'right' && v && typeof v === 'object' && (v as any)._type === node._type) {
+        return v;
+      }
+    }
+  }
+  return null;
+};
+
+const getPrevNode = (node: any): any | null => {
+  if (!node || typeof node !== 'object') return null;
+  const prevKeys = ['prev', 'previous', 'pred'];
+  for (const key of prevKeys) {
+    if (key in node && node[key] !== null && typeof node[key] === 'object') {
+      return node[key];
+    }
+  }
+  return null;
+};
+
+const getLeftNode = (node: any): any | null => {
+  if (!node || typeof node !== 'object') return null;
+  const leftKeys = ['left', 'leftChild', 'left_child'];
+  for (const key of leftKeys) {
+    if (key in node && node[key] !== null && typeof node[key] === 'object') {
+      return node[key];
+    }
+  }
+  return null;
+};
+
+const getRightNode = (node: any): any | null => {
+  if (!node || typeof node !== 'object') return null;
+  const rightKeys = ['right', 'rightChild', 'right_child'];
+  for (const key of rightKeys) {
+    if (key in node && node[key] !== null && typeof node[key] === 'object') {
+      return node[key];
+    }
+  }
+  return null;
+};
+
+// Helper to extract actual elements from a list/array/collection wrapper object (like Java's ArrayList)
+const extractElementsFromList = (listObj: any): any[] => {
+  if (!listObj || typeof listObj !== 'object') return [];
+  if (Array.isArray(listObj)) {
+    return listObj;
+  }
+  const listKeys = ['elementData', 'items', 'arr', 'array', 'data'];
+  for (const key of listKeys) {
+    if (key in listObj && Array.isArray(listObj[key])) {
+      return listObj[key].filter((item: any) => item !== null && item !== undefined);
+    }
+  }
+  for (const [k, v] of Object.entries(listObj)) {
+    if (Array.isArray(v)) {
+      return v.filter((item: any) => item !== null && item !== undefined);
+    }
+  }
+  return [];
+};
+
+// Generic helper to get all children of a node (handles Binary Trees and N-ary Trees)
+const getChildrenNodes = (node: any): any[] => {
+  if (!node || typeof node !== 'object') return [];
+  
+  // 1. Check for fields named 'children', 'childList', 'child_list', or 'childs'
+  const childrenKeys = ['children', 'childList', 'child_list', 'childs'];
+  for (const key of childrenKeys) {
+    if (key in node && node[key] !== null) {
+      const val = node[key];
+      const elements = extractElementsFromList(val);
+      if (elements.length > 0) {
+        return elements.filter(v => typeof v === 'object');
+      }
+      // If it's a single object (not a list wrapper) and is a valid node of same type
+      if (typeof val === 'object' && val._type && val._type === node._type) {
+        return [val];
+      }
+    }
+  }
+  
+  // 2. Check if the node itself has any array/list field that contains objects of the same _type
+  if (node._type) {
+    for (const [k, v] of Object.entries(node)) {
+      const elements = extractElementsFromList(v);
+      if (elements.length > 0) {
+        const objectElements = elements.filter(item => typeof item === 'object');
+        if (objectElements.length > 0 && objectElements.every(item => item._type === node._type)) {
+          return objectElements;
+        }
+      }
+    }
+  }
+  
+  // 3. Fallback to left and right nodes if present
+  const left = getLeftNode(node);
+  const right = getRightNode(node);
+  const fallback: any[] = [];
+  if (left) fallback.push(left);
+  if (right) fallback.push(right);
+  return fallback;
+};
+
+// 1. Linked List Node component (split into Prev + Data + Next Pointer)
+const LinkedListNodeMesh: React.FC<{
+  position: [number, number, number];
+  value: any;
+  address: string;
+  nextAddress: string;
+  prevAddress: string | null; // Null if singly linked list
+  label?: string;
+}> = ({ position, value, address, nextAddress, prevAddress, label }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const isDoubly = prevAddress !== null;
+
+  // Floating animation
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.08;
+    }
+  });
+
+  const displayValue = value === null || value === undefined ? 'null' : typeof value === 'string' ? `"${value}"` : String(value);
+  const width = isDoubly ? 2.8 : 2.2;
+
+  return (
+    <group position={position}>
+      <group ref={groupRef}>
+        {/* Main Node Box */}
+        <RoundedBox args={[width, 1.2, 0.6]} radius={0.1} smoothness={4}>
+          <meshStandardMaterial color="#1e1b4b" roughness={0.3} metalness={0.6} />
+        </RoundedBox>
+
+        {/* --- PREV Compartment (only if doubly) --- */}
+        {isDoubly && (
+          <>
+            <mesh position={[-1.0, 0, 0.01]}>
+              <planeGeometry args={[0.76, 1.18]} />
+              <meshBasicMaterial color="#0f172a" transparent opacity={0.5} />
+            </mesh>
+            <RoundedBox args={[0.04, 1.2, 0.62]} position={[-0.6, 0, 0]} radius={0.01}>
+              <meshBasicMaterial color="#374151" />
+            </RoundedBox>
+            <Text
+              position={[-1.0, 0, 0.31]}
+              fontSize={0.22}
+              color={prevAddress === 'NULL' ? '#ef4444' : '#a78bfa'}
+              anchorX="center"
+              anchorY="middle"
+              fontWeight="bold"
+            >
+              {prevAddress}
+            </Text>
+            <Text
+              position={[-1.0, 0.9, 0]}
+              fontSize={0.2}
+              color="#94a3b8"
+              anchorX="center"
+              anchorY="bottom"
+            >
+              prev
+            </Text>
+          </>
+        )}
+
+        {/* --- NEXT Compartment --- */}
+        <mesh position={[isDoubly ? 1.0 : 0.7, 0, 0.01]}>
+          <planeGeometry args={[0.76, 1.18]} />
+          <meshBasicMaterial color="#0f172a" transparent opacity={0.5} />
+        </mesh>
+        <RoundedBox args={[0.04, 1.2, 0.62]} position={[isDoubly ? 0.6 : 0.3, 0, 0]} radius={0.01}>
+          <meshBasicMaterial color="#374151" />
+        </RoundedBox>
+        <Text
+          position={[isDoubly ? 1.0 : 0.7, 0, 0.31]}
+          fontSize={0.22}
+          color={nextAddress === 'NULL' ? '#ef4444' : '#10b981'}
+          anchorX="center"
+          anchorY="middle"
+          fontWeight="bold"
+        >
+          {nextAddress}
+        </Text>
+        <Text
+          position={[isDoubly ? 1.0 : 0.7, 0.9, 0]}
+          fontSize={0.2}
+          color="#94a3b8"
+          anchorX="center"
+          anchorY="bottom"
+        >
+          next
+        </Text>
+
+        {/* --- DATA (Value) Compartment --- */}
+        <Text
+          position={[isDoubly ? -0.1 : -0.4, 0, 0.31]}
+          fontSize={0.35}
+          color="white"
+          anchorX="center"
+          anchorY="middle"
+          maxWidth={1.1}
+          fontWeight="bold"
+        >
+          {displayValue}
+        </Text>
+
+        {/* Memory Address Tag (Cyan) */}
+        <Text
+          position={[isDoubly ? -0.1 : -0.4, 0.9, 0]}
+          fontSize={0.25}
+          color="#67e8f9"
+          anchorX="center"
+          anchorY="bottom"
+          fontWeight="bold"
+        >
+          {address}
+        </Text>
+      </group>
+
+      {/* Variable Name label */}
+      {label && (
+        <Text position={[isDoubly ? -0.1 : -0.4, 1.6, 0]} fontSize={0.4} color="#60a5fa" anchorX="center" anchorY="bottom" fontWeight="bold">
+          {label}
+        </Text>
+      )}
+    </group>
+  );
+};
+
+// 2. Tree Node component (Sphere)
+const TreeNodeMesh: React.FC<{
+  position: [number, number, number];
+  value: any;
+  address: string;
+  label?: string;
+}> = ({ position, value, address, label }) => {
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.1;
+    }
+  });
+
+  const displayValue = value === null || value === undefined ? 'null' : typeof value === 'string' ? `"${value}"` : String(value);
+
+  return (
+    <group position={position}>
+      <group ref={groupRef}>
+        <Sphere args={[0.8, 32, 32]}>
+          <meshStandardMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} roughness={0.2} metalness={0.8} />
+        </Sphere>
+        <Text position={[0, 0, 0.81]} fontSize={0.4} color="white" anchorX="center" anchorY="middle" maxWidth={1.2} fontWeight="bold">
+          {displayValue}
+        </Text>
+        
+        {/* Address Tag */}
+        <Text position={[0, 1.0, 0]} fontSize={0.22} color="#67e8f9" anchorX="center" anchorY="bottom" fontWeight="bold">
+          {address}
+        </Text>
+      </group>
+
+      {/* Variable Name */}
+      {label && (
+        <Text position={[0, 1.6, 0]} fontSize={0.4} color="#60a5fa" anchorX="center" anchorY="bottom" fontWeight="bold">
+          {label}
+        </Text>
+      )}
+    </group>
+  );
+};
+
+export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, root, yOffset }) => {
+  // Pre-traverse to assign memory addresses to nodes
+  const { nodes, links, isLinkedList } = useMemo(() => {
+    const positionedNodes: PositionedNode[] = [];
+    const links: { 
+      source: [number, number, number]; 
+      target: [number, number, number]; 
+      isLinkedList: boolean;
+      isDoubly: boolean;
+      type: 'next' | 'prev';
+    }[] = [];
+    const nodeAddresses = new Map<any, string>();
+    
+    // Check if linked list or tree using generic getters
+    const hasNext = getNextNode(root) !== null;
+    const hasPrev = getPrevNode(root) !== null;
+    const hasLeftRight = getLeftNode(root) !== null || getRightNode(root) !== null;
+    const hasChildrenList = 'children' in root || 'childList' in root || 'childs' in root;
+    const typeName = (root._type || '').toLowerCase();
+    const isTreeType = typeName.includes('tree') || typeName.includes('bst') || typeName.includes('avl');
+    
+    const detectedLinkedList = hasNext && !hasLeftRight && !hasChildrenList && !isTreeType;
+    const detectedDoubly = detectedLinkedList && hasPrev;
+
+    // 1. Assign deterministic addresses
+    if (detectedLinkedList) {
+      let temp: any = root;
+      let idx = 0;
+      while (temp && typeof temp === 'object') {
+        const uniqueKey = temp._id || `node_${idx}`;
+        nodeAddresses.set(temp, formatAddress(uniqueKey));
+        if (idx > 50) break; // Infinite loop guard
+        temp = getNextNode(temp);
+        idx++;
+      }
+    } else {
+      let nodeIndex = 0;
+      const assignTreeAddresses = (n: any) => {
+        if (!n || typeof n !== 'object') return;
+        const uniqueKey = n._id || `tree_node_${nodeIndex++}`;
+        nodeAddresses.set(n, formatAddress(uniqueKey));
+        const children = getChildrenNodes(n);
+        children.forEach(assignTreeAddresses);
+      };
+      assignTreeAddresses(root);
+    }
+
+    // 2. Lay out nodes
+    let nextId = 0;
+    
+    const traverse = (node: NodeData | string, depth: number, offset: number): PositionedNode | null => {
+      if (!node) return null;
+      if (typeof node === 'string') return null;
+      if (typeof node !== 'object') return null;
+
+      const val = node.val !== undefined ? node.val :
+                  node.value !== undefined ? node.value :
+                  node.item !== undefined ? node.item :
+                  node.data !== undefined ? node.data : '?';
+                  
+      const id = node._id ? `node_${node._id}` : `node_${nextId++}`;
+      const address = nodeAddresses.get(node) || '0x0000';
+      
+      let nextAddress = 'NULL';
+      const nextNode = getNextNode(node);
+      if (nextNode) {
+        nextAddress = nodeAddresses.get(nextNode) || 'NULL';
+      }
+
+      let prevAddress: string | null = null;
+      if (detectedDoubly) {
+        prevAddress = 'NULL';
+        const prevNode = getPrevNode(node);
+        if (prevNode) {
+          prevAddress = nodeAddresses.get(prevNode) || 'NULL';
+        }
+      }
+
+      // Lay out Linked List horizontally, Trees vertically
+      const spacing = detectedDoubly ? 4.2 : (detectedLinkedList ? 3.5 : 2.5);
+      const x = offset * spacing;
+      const y = -depth * 2.5;
+      const z = 0;
+      const position: [number, number, number] = [x, y, z];
+      
+      const currentPosNode: PositionedNode = { 
+        id, 
+        val, 
+        position, 
+        address, 
+        nextAddress, 
+        prevAddress,
+        isLinkedList: detectedLinkedList,
+        isDoubly: detectedDoubly,
+        children: [] 
+      };
+      
+      positionedNodes.push(currentPosNode);
+      
+      if (detectedLinkedList) {
+        if (nextNode) {
+          const child = traverse(nextNode, depth, offset + 1);
+          if (child) {
+            currentPosNode.children.push({ childId: child.id, type: 'next' });
+            
+            // Next Pointer Link (going forward)
+            links.push({ 
+              source: position, 
+              target: child.position, 
+              isLinkedList: true, 
+              isDoubly: detectedDoubly,
+              type: 'next'
+            });
+
+            // Prev Pointer Link (going backward)
+            if (detectedDoubly) {
+              links.push({
+                source: child.position,
+                target: position,
+                isLinkedList: true,
+                isDoubly: true,
+                type: 'prev'
+              });
+            }
+          }
+        }
+      } else {
+        // Tree Traversal
+        const children = getChildrenNodes(node);
+        if (children.length > 0) {
+          const spread = 3.5 / Math.pow(1.2, depth); // spread factor based on depth level
+          const count = children.length;
+          
+          children.forEach((childNode, idx) => {
+            let childOffset = offset;
+            if (count > 1) {
+              childOffset = offset - (spread / 2) + (idx * (spread / (count - 1)));
+            }
+            
+            const child = traverse(childNode, depth + 1, childOffset);
+            if (child) {
+              currentPosNode.children.push({ childId: child.id, type: 'child' });
+              links.push({ 
+                source: position, 
+                target: child.position, 
+                isLinkedList: false, 
+                isDoubly: false, 
+                type: 'next' 
+              });
+            }
+          });
+        }
+      }
+      
+      return currentPosNode;
+    };
+    
+    traverse(root, 0, 0);
+    
+    return { nodes: positionedNodes, links, isLinkedList: detectedLinkedList };
+  }, [root]);
+
+  return (
+    <group position={[0, yOffset, 0]}>
+      {links.map((link, i) => {
+        let startPoint: [number, number, number] = link.source;
+        let endPoint: [number, number, number] = link.target;
+        let lineColor = '#9ca3af'; // default grey
+        
+        if (link.isLinkedList) {
+          if (link.isDoubly) {
+            if (link.type === 'next') {
+              startPoint = [link.source[0] + 1.0, link.source[1], link.source[2] + 0.15];
+              endPoint = [link.target[0] - 0.1, link.target[1], link.target[2] + 0.15];
+              lineColor = '#10b981'; // Emerald Green
+            } else {
+              startPoint = [link.source[0] - 1.0, link.source[1], link.source[2] - 0.15];
+              endPoint = [link.target[0] - 0.1, link.target[1], link.target[2] - 0.15];
+              lineColor = '#a78bfa'; // Purple
+            }
+          } else {
+            // Singly LinkedList
+            startPoint = [link.source[0] + 0.7, link.source[1], link.source[2]];
+            endPoint = [link.target[0] - 0.4, link.target[1], link.target[2]];
+            lineColor = '#10b981';
+          }
+        } else {
+          // Tree connection: line between spheres boundaries (radius is 0.8)
+          startPoint = [link.source[0], link.source[1] - 0.8, link.source[2]];
+          endPoint = [link.target[0], link.target[1] + 0.8, link.target[2]];
+          lineColor = '#60a5fa'; // Light Blue for tree pointers
+        }
+
+        return (
+          <group key={`link-group-${i}`}>
+            <Line 
+              points={[startPoint, endPoint]} 
+              color={lineColor} 
+              lineWidth={3} 
+            />
+            {/* Visual connector anchor bulb inside the pointer compartments (only for LL) */}
+            {link.isLinkedList && (
+              <mesh position={[startPoint[0], startPoint[1], startPoint[2] + 0.02]}>
+                <sphereGeometry args={[0.08, 16, 16]} />
+                <meshBasicMaterial color={lineColor} />
+              </mesh>
+            )}
+          </group>
+        );
+      })}
+      
+      {nodes.map((node, i) => {
+        if (node.isLinkedList) {
+          return (
+            <LinkedListNodeMesh
+              key={node.id}
+              position={node.position}
+              value={node.val}
+              address={node.address}
+              nextAddress={node.nextAddress}
+              prevAddress={node.prevAddress}
+              label={i === 0 ? name : undefined}
+            />
+          );
+        } else {
+          return (
+            <TreeNodeMesh
+              key={node.id}
+              position={node.position}
+              value={node.val}
+              address={node.address}
+              label={i === 0 ? name : undefined}
+            />
+          );
+        }
+      })}
+    </group>
+  );
+};
+
+export default ThreeDNodeStructure;

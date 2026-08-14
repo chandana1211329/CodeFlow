@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  BookOpen, Home, Search, Zap
+  BookOpen, Home, Search, Zap, Compass
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { COURSES } from '../data/courses';
@@ -26,6 +26,12 @@ const Dashboard: React.FC = () => {
             label="Courses" 
             active={true} 
             onClick={() => {}} 
+          />
+          <SidebarLink 
+            icon={<Compass size={20} />} 
+            label="CS Career Roadmap" 
+            active={false} 
+            onClick={() => navigate('/career-roadmap')} 
           />
         </nav>
 

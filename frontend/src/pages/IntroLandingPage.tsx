@@ -11,7 +11,8 @@ import {
   BarChart3, 
   Rocket, 
   Mail,
-  User
+  User,
+  Compass
 } from 'lucide-react';
 import CodeFlowLogo from '../components/CodeFlowLogo';
 import CodeFlowHeroVisual from '../components/CodeFlowHeroVisual';
@@ -122,7 +123,7 @@ export const IntroLandingPage: React.FC = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.4 }}
-            className="flex items-center gap-4 pt-2"
+            className="flex flex-wrap items-center gap-3 pt-2"
           >
             <button
               onClick={handleEnterCodeFlow}
@@ -133,8 +134,16 @@ export const IntroLandingPage: React.FC = () => {
             </button>
 
             <button
+              onClick={() => navigate('/career-roadmap')}
+              className="px-5 py-3 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500/20 text-blue-300 font-semibold text-sm rounded-xl transition-all cursor-pointer flex items-center gap-2"
+            >
+              <Compass className="w-4 h-4 text-blue-400" />
+              <span>Career Roadmap</span>
+            </button>
+
+            <button
               onClick={handleViewDetails}
-              className="px-6 py-3 bg-white/5 border border-white/15 hover:bg-white/10 text-gray-300 hover:text-white font-semibold text-sm rounded-xl transition-all cursor-pointer"
+              className="px-5 py-3 bg-white/5 border border-white/15 hover:bg-white/10 text-gray-300 hover:text-white font-semibold text-sm rounded-xl transition-all cursor-pointer"
             >
               View Project Details
             </button>

@@ -41,6 +41,12 @@ const LandingPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-4">
           <Link 
+            to="/career-roadmap" 
+            className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full font-semibold transition-all border border-white/10 flex items-center gap-2"
+          >
+            Career Roadmap
+          </Link>
+          <Link 
             to="/dashboard" 
             className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-full font-semibold transition-all shadow-lg shadow-blue-600/20"
           >

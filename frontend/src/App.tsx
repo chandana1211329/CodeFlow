@@ -10,6 +10,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
+import CareerRoadmapPage from './pages/CareerRoadmapPage';
+
 const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
@@ -26,6 +28,8 @@ const App: React.FC = () => {
           
           <Route path="/onboarding" element={<PrivateRoute><Onboarding /></PrivateRoute>} />
           <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/career-roadmap" element={<PrivateRoute><CareerRoadmapPage /></PrivateRoute>} />
+          <Route path="/career-roadmap/*" element={<PrivateRoute><CareerRoadmapPage /></PrivateRoute>} />
           <Route path="/playground" element={<Playground />} />
           <Route path="/learn/:courseId" element={<PrivateRoute><Learn /></PrivateRoute>} />
           <Route path="/learn/:courseId/:topicId" element={<PrivateRoute><Learn /></PrivateRoute>} />
