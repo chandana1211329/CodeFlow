@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { ChevronLeft, Home, Zap } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, Home, Zap, Layers, PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import MonacoEditor from '../components/MonacoEditor';
 import VisualizationPanel from '../components/VisualizationPanel';
 import Controls from '../components/Controls';
+import ExecutionTimeline from '../components/ExecutionTimeline';
 import { ExecutionStep } from '../types';
 import { executeCode } from '../api';
+import { enrichStepClientSide } from '../utils/diffEngine';
 import { InputCollectionModal } from '../components/InputCollectionModal';
 import CodeFlowLogo from '../components/CodeFlowLogo';
 
@@ -62,12 +64,12 @@ arr[1] = 99
 count = len(arr)`;
 
   const [code, setCode] = useState<string>(initialCode);
-  
   const [language, setLanguage] = useState<string>('python');
   const [steps, setSteps] = useState<ExecutionStep[]>([]);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isTimelineOpen, setIsTimelineOpen] = useState<boolean>(true);
 
   // Input Collection States
   const [isInputModalOpen, setIsInputModalOpen] = useState<boolean>(false);
@@ -90,7 +92,8 @@ count = len(arr)`;
       if (result.error) {
         setError(result.error);
       } else {
-        setSteps(result.steps || []);
+        const enriched = enrichStepClientSide(result.steps || []);
+        setSteps(enriched);
         setCurrentStepIndex(0);
       }
     } catch (err) {
@@ -119,6 +122,12 @@ count = len(arr)`;
   const handlePreviousStep = () => {
     if (currentStepIndex > 0) {
       setCurrentStepIndex(currentStepIndex - 1);
+    }
+  };
+
+  const handleSelectStep = (index: number) => {
+    if (index >= 0 && index < steps.length) {
+      setCurrentStepIndex(index);
     }
   };
 
@@ -204,7 +213,20 @@ int main() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsTimelineOpen(!isTimelineOpen)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+              isTimelineOpen 
+                ? 'bg-blue-600/20 text-blue-300 border-blue-500/40' 
+                : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Timeline</span>
+            {isTimelineOpen ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
+          </button>
+          
           <div className="flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             <span className="text-xs font-medium text-gray-300 capitalize">{language}</span>
@@ -215,7 +237,7 @@ int main() {
       {/* Main Content */}
       <main className="flex-1 flex overflow-hidden">
         {/* Left Panel - Editor */}
-        <div className="flex-1 flex flex-col border-r border-white/5 min-w-[40%]">
+        <div className="flex-1 flex flex-col border-r border-white/5 min-w-[35%]">
           <div className="h-12 border-b border-white/5 flex items-center justify-between px-4 bg-[#020617]">
             <div className="flex items-center gap-2">
               <select 
@@ -247,7 +269,7 @@ int main() {
           </div>
         </div>
 
-        {/* Right Panel - Visualization */}
+        {/* Center Panel - Visualization */}
         <div className="flex-1 flex flex-col bg-[#020617] relative">
           <div className="flex-1 overflow-hidden">
             <VisualizationPanel
@@ -257,9 +279,28 @@ int main() {
               error={error}
               courseId={language}
               code={code}
+              onSelectStep={handleSelectStep}
             />
           </div>
         </div>
+
+        {/* Right Panel - Execution Timeline */}
+        <AnimatePresence>
+          {isTimelineOpen && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 280, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              className="h-full border-l border-white/5 bg-[#020617] overflow-hidden"
+            >
+              <ExecutionTimeline
+                steps={steps}
+                currentStepIndex={currentStepIndex}
+                onSelectStep={handleSelectStep}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       <InputCollectionModal
@@ -276,3 +317,4 @@ int main() {
 };
 
 export default Playground;
+

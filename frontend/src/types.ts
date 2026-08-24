@@ -1,3 +1,31 @@
+export interface ChangeDetail {
+  varName: string;
+  type: 'created' | 'updated' | 'deleted' | 'element_added' | 'element_updated' | 'element_removed';
+  targetKey?: string | number;
+  prevValue?: any;
+  newValue?: any;
+  description: string;
+}
+
+export interface ExecutionDiff {
+  changedVars: string[];
+  changes: ChangeDetail[];
+  summary: string;
+}
+
+export interface StepExplanation {
+  whatHappened: string;
+  whyItHappened: string;
+  whatChangedText: string;
+  valuesInvolved?: Record<string, any>;
+}
+
+export interface RelationshipLink {
+  from: string;
+  label: string;
+  to: string;
+}
+
 export interface OperatorMetadata {
   expr: string;
   operand1: string;
@@ -40,6 +68,13 @@ export interface ExecutionStep {
   description?: string;
   output?: string;
   metadata?: StepMetadata;
+  operationType?: string;
+  diff?: ExecutionDiff;
+  explanation?: StepExplanation;
+  whyDetails?: string;
+  relationshipFlow?: RelationshipLink[];
+  isError?: boolean;
+  errorMessage?: string;
 }
 
 export interface ExecutionResponse {
@@ -49,4 +84,7 @@ export interface ExecutionResponse {
 
 export interface ExecutionRequest {
   code: string;
+  language?: string;
+  inputs?: string[];
 }
+

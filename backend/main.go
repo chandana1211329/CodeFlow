@@ -56,14 +56,50 @@ type LoopMetadata struct {
 	IsComplete      bool   `json:"isComplete"`
 }
 
-type ExecutionStep struct {
-	Line        int                    `json:"line"`
-	Code        string                 `json:"code"`
-	Variables   map[string]interface{} `json:"variables"`
-	Description string                 `json:"description"`
-	Output      string                 `json:"output"`
-	Metadata    *StepMetadata          `json:"metadata,omitempty"`
+type ChangeDetail struct {
+	VarName     string      `json:"varName"`
+	Type        string      `json:"type"` // "created", "updated", "deleted", "element_added", "element_updated", "element_removed"
+	TargetKey   interface{} `json:"targetKey,omitempty"`
+	PrevValue   interface{} `json:"prevValue,omitempty"`
+	NewValue    interface{} `json:"newValue,omitempty"`
+	Description string      `json:"description"`
 }
+
+type ExecutionDiff struct {
+	ChangedVars []string       `json:"changedVars"`
+	Changes     []ChangeDetail `json:"changes"`
+	Summary     string         `json:"summary"`
+}
+
+type StepExplanation struct {
+	WhatHappened    string                 `json:"whatHappened"`
+	WhyItHappened   string                 `json:"whyItHappened"`
+	WhatChangedText string                 `json:"whatChangedText"`
+	ValuesInvolved  map[string]interface{} `json:"valuesInvolved,omitempty"`
+}
+
+type RelationshipLink struct {
+	From  string `json:"from"`
+	Label string `json:"label"`
+	To    string `json:"to"`
+}
+
+type ExecutionStep struct {
+	Line             int                    `json:"line"`
+	Code             string                 `json:"code"`
+	Variables        map[string]interface{} `json:"variables"`
+	Description      string                 `json:"description"`
+	Output           string                 `json:"output"`
+	Metadata         *StepMetadata          `json:"metadata,omitempty"`
+	OperationType    string                 `json:"operationType,omitempty"`
+	Diff             *ExecutionDiff         `json:"diff,omitempty"`
+	Explanation      *StepExplanation       `json:"explanation,omitempty"`
+	WhyDetails       string                 `json:"whyDetails,omitempty"`
+	RelationshipFlow []RelationshipLink     `json:"relationshipFlow,omitempty"`
+	IsError          bool                   `json:"isError,omitempty"`
+	ErrorMessage     string                 `json:"errorMessage,omitempty"`
+}
+
 
 
 type ExecutionRequest struct {
@@ -244,46 +280,229 @@ func formatValueForDescription(v interface{}) string {
 
 func generateDescriptions(steps []ExecutionStep) []ExecutionStep {
 	for i := range steps {
+		step := &steps[i]
+		codeTrim := strings.TrimSpace(step.Code)
+
 		if i == 0 {
-			steps[i].Description = "Execution started. Setting up the initial state."
+			step.Description = "Execution started. Setting up the initial state."
+			step.OperationType = "INITIALIZATION"
+			step.Diff = &ExecutionDiff{
+				ChangedVars: []string{},
+				Changes:     []ChangeDetail{},
+				Summary:     "Program initialized",
+			}
+			step.Explanation = &StepExplanation{
+				WhatHappened:    "Program execution began.",
+				WhyItHappened:   "Setting up execution environment and global state.",
+				WhatChangedText: "Initial execution state ready.",
+				ValuesInvolved:  step.Variables,
+			}
+			step.WhyDetails = "When Python code starts running, the interpreter initializes standard built-in structures and prepares to execute line by line from the top."
 			continue
 		}
 
 		prevStep := steps[i-1]
-		currStep := steps[i]
+		var changedVars []string
+		var changeDetails []ChangeDetail
+		var changeSummaries []string
+		var relLinks []RelationshipLink
 
-		// Look for changed variables
-		var changes []string
-		for k, v := range currStep.Variables {
+		for k, currV := range step.Variables {
 			prevV, exists := prevStep.Variables[k]
 			
-			changed := false
 			if !exists {
-				changed = true
+				changedVars = append(changedVars, k)
+				detail := ChangeDetail{
+					VarName:     k,
+					Type:        "created",
+					NewValue:    currV,
+					Description: fmt.Sprintf("New variable created: %s = %s", k, formatValueForDescription(currV)),
+				}
+				changeDetails = append(changeDetails, detail)
+				changeSummaries = append(changeSummaries, fmt.Sprintf("New variable: %s = %s", k, formatValueForDescription(currV)))
 			} else {
-				vJSON, _ := json.Marshal(v)
-				prevVJSON, _ := json.Marshal(prevV)
-				if string(vJSON) != string(prevVJSON) {
-					changed = true
+				currJSON, _ := json.Marshal(currV)
+				prevJSON, _ := json.Marshal(prevV)
+				if string(currJSON) != string(prevJSON) {
+					changedVars = append(changedVars, k)
+
+					// Check if array/slice
+					currArr, currIsArr := currV.([]interface{})
+					prevArr, prevIsArr := prevV.([]interface{})
+
+					if currIsArr && prevIsArr {
+						if len(currArr) > len(prevArr) {
+							addedIdx := len(currArr) - 1
+							addedVal := currArr[addedIdx]
+							detail := ChangeDetail{
+								VarName:     k,
+								Type:        "element_added",
+								TargetKey:   addedIdx,
+								NewValue:    addedVal,
+								Description: fmt.Sprintf("%s: + %s (index %d)", k, formatValueForDescription(addedVal), addedIdx),
+							}
+							changeDetails = append(changeDetails, detail)
+							changeSummaries = append(changeSummaries, fmt.Sprintf("%s\n+ Added element: %s\n+ New index: %d", k, formatValueForDescription(addedVal), addedIdx))
+						} else if len(currArr) == len(prevArr) {
+							for idx := 0; idx < len(currArr); idx++ {
+								cItemJSON, _ := json.Marshal(currArr[idx])
+								pItemJSON, _ := json.Marshal(prevArr[idx])
+								if string(cItemJSON) != string(pItemJSON) {
+									detail := ChangeDetail{
+										VarName:     k,
+										Type:        "element_updated",
+										TargetKey:   idx,
+										PrevValue:   prevArr[idx],
+										NewValue:    currArr[idx],
+										Description: fmt.Sprintf("%s[%d]: %s → %s", k, idx, formatValueForDescription(prevArr[idx]), formatValueForDescription(currArr[idx])),
+									}
+									changeDetails = append(changeDetails, detail)
+									changeSummaries = append(changeSummaries, fmt.Sprintf("%s[%d]\nPrevious value: %s\nNew value: %s", k, idx, formatValueForDescription(prevArr[idx]), formatValueForDescription(currArr[idx])))
+								}
+							}
+						} else {
+							detail := ChangeDetail{
+								VarName:     k,
+								Type:        "element_removed",
+								Description: fmt.Sprintf("%s: element removed", k),
+							}
+							changeDetails = append(changeDetails, detail)
+							changeSummaries = append(changeSummaries, fmt.Sprintf("%s: element removed", k))
+						}
+					} else {
+						detail := ChangeDetail{
+							VarName:     k,
+							Type:        "updated",
+							PrevValue:   prevV,
+							NewValue:    currV,
+							Description: fmt.Sprintf("%s: %s → %s", k, formatValueForDescription(prevV), formatValueForDescription(currV)),
+						}
+						changeDetails = append(changeDetails, detail)
+						changeSummaries = append(changeSummaries, fmt.Sprintf("%s\n%s → %s", k, formatValueForDescription(prevV), formatValueForDescription(currV)))
+					}
 				}
 			}
+		}
 
-			if changed {
-				changes = append(changes, fmt.Sprintf("'%s' is now %s", k, formatValueForDescription(v)))
+		// Detect relationship flow (e.g., count = len(arr))
+		if strings.Contains(codeTrim, "len(") {
+			reLen := regexp.MustCompile(`(\w+)\s*=\s*len\(\s*(\w+)\s*\)`)
+			matches := reLen.FindStringSubmatch(codeTrim)
+			if len(matches) > 2 {
+				target := matches[1]
+				src := matches[2]
+				val := step.Variables[target]
+				relLinks = append(relLinks, RelationshipLink{
+					From:  src,
+					Label: fmt.Sprintf("len(%s) = %v", src, val),
+					To:    target,
+				})
+			}
+		} else if strings.Contains(codeTrim, "=") {
+			parts := strings.Split(codeTrim, "=")
+			if len(parts) == 2 {
+				lhs := strings.TrimSpace(parts[0])
+				rhs := strings.TrimSpace(parts[1])
+				for k := range step.Variables {
+					if strings.Contains(rhs, k) && k != lhs {
+						relLinks = append(relLinks, RelationshipLink{
+							From:  k,
+							Label: fmt.Sprintf("used in %s", lhs),
+							To:    lhs,
+						})
+					}
+				}
 			}
 		}
 
-		if len(changes) > 0 {
-			steps[i].Description = "Update: " + strings.Join(changes, ", ") + "."
-		} else if strings.Contains(currStep.Code, "for") || strings.Contains(currStep.Code, "while") {
-			steps[i].Description = "Evaluating loop condition for the next iteration."
-		} else if strings.Contains(currStep.Code, "if") {
-			steps[i].Description = "Checking condition to decide execution path."
-		} else if strings.Contains(currStep.Code, "print") || strings.Contains(currStep.Code, "System.out") {
-			steps[i].Description = "Generating output to the console."
-		} else {
-			steps[i].Description = "Moving to the next logical line in your program."
+		// Classify Operation Type
+		opType := "EXECUTION"
+		if strings.Contains(codeTrim, ".append(") || strings.Contains(codeTrim, ".add(") || strings.Contains(codeTrim, ".push(") {
+			opType = "ARRAY INSERTION"
+		} else if regexp.MustCompile(`\w+\[.*\]\s*=`).MatchString(codeTrim) {
+			opType = "ARRAY UPDATE"
+		} else if strings.HasPrefix(codeTrim, "for ") || strings.HasPrefix(codeTrim, "while ") {
+			opType = "LOOP"
+		} else if strings.HasPrefix(codeTrim, "if ") || strings.HasPrefix(codeTrim, "elif ") || strings.HasPrefix(codeTrim, "else") {
+			opType = "CONDITION"
+		} else if strings.Contains(codeTrim, "print(") || strings.Contains(codeTrim, "System.out") {
+			opType = "OUTPUT"
+		} else if strings.Contains(codeTrim, "len(") {
+			opType = "CALCULATION / ASSIGNMENT"
+		} else if len(changedVars) > 0 {
+			firstVar := changedVars[0]
+			_, existed := prevStep.Variables[firstVar]
+			if !existed {
+				opType = "VARIABLE CREATION"
+			} else {
+				opType = "ASSIGNMENT"
+			}
 		}
+
+		step.OperationType = opType
+
+		// Build What Changed text
+		whatChangedStr := "No variables changed in this step."
+		if len(changeSummaries) > 0 {
+			whatChangedStr = strings.Join(changeSummaries, "\n\n")
+		}
+
+		step.Diff = &ExecutionDiff{
+			ChangedVars: changedVars,
+			Changes:     changeDetails,
+			Summary:     whatChangedStr,
+		}
+
+		// AI Explanation & Why Details
+		whatHappened := fmt.Sprintf("Executing line: %s", codeTrim)
+		whyItHappened := "Python evaluated this statement to update the active memory state."
+		whyDetails := fmt.Sprintf("The statement '%s' was executed by Python. ", codeTrim)
+
+		if opType == "ARRAY INSERTION" {
+			whatHappened = fmt.Sprintf("Appended new element to array.")
+			whyItHappened = "The .append() method places a new item at the very end of the list, increasing its total length by 1."
+			whyDetails = "In Python lists, append(x) dynamically resizes memory to accommodate the new element at index len(arr)-1."
+		} else if opType == "ARRAY UPDATE" {
+			whatHappened = fmt.Sprintf("Updated element at specified index.")
+			whyItHappened = "List indexing allows direct positional modification of elements in memory."
+			whyDetails = "Python lists use zero-based indexing:\n• Index 0 → First element\n• Index 1 → Second element\n• Index 2 → Third element\n\nAssigning to arr[index] overwrites the existing stored value."
+		} else if opType == "CALCULATION / ASSIGNMENT" && strings.Contains(codeTrim, "len(") {
+			whatHappened = fmt.Sprintf("Calculated length of structure.")
+			whyItHappened = "len() counts total active elements currently stored in memory."
+			whyDetails = "The len() function inspects the internal size attribute of the data structure and returns an integer count."
+		} else if opType == "VARIABLE CREATION" {
+			whatHappened = fmt.Sprintf("Created new variable in local scope.")
+			whyItHappened = "Assignment creates a name reference bound to the evaluated object in memory."
+			whyDetails = "Python binds variable names to memory references upon first assignment without needing explicit type declarations."
+		} else if opType == "CONDITION" {
+			whatHappened = "Evaluated branch condition."
+			whyItHappened = "Determines whether to execute the conditional block or branch to another path."
+			whyDetails = "Conditional expressions evaluate to either True or False. If True, the indented block directly underneath executes."
+		} else if opType == "LOOP" {
+			whatHappened = "Evaluated loop condition for iteration."
+			whyItHappened = "Loops repeat execution of a block until the termination condition returns False."
+			whyDetails = "For loops iterate through each item in a sequence or range. While loops repeat as long as their condition evaluates to True."
+		} else if opType == "OUTPUT" {
+			whatHappened = "Printed output to console stream."
+			whyItHappened = "Sends formatted string representation to standard output (stdout)."
+			whyDetails = "print() evaluates the expression inside parentheses and flushes the string result to standard console output."
+		}
+
+		if len(changeSummaries) > 0 {
+			step.Description = fmt.Sprintf("Line %d [%s]: %s", step.Line, opType, strings.Join(changedVars, ", "))
+		} else {
+			step.Description = fmt.Sprintf("Line %d [%s]: Executed statement", step.Line, opType)
+		}
+
+		step.Explanation = &StepExplanation{
+			WhatHappened:    whatHappened,
+			WhyItHappened:   whyItHappened,
+			WhatChangedText: whatChangedStr,
+			ValuesInvolved:  step.Variables,
+		}
+
+		step.WhyDetails = whyDetails
+		step.RelationshipFlow = relLinks
 	}
 	return steps
 }

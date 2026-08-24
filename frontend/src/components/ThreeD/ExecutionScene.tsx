@@ -398,7 +398,34 @@ const ThreeDLoop: React.FC<ThreeDLoopProps> = ({ loop }) => {
   );
 };
 
-const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep }) => {
+interface ExecutionSceneProps {
+  currentStep: ExecutionStep | null;
+  highlightedVar?: string | null;
+}
+
+// Helper to extract array changed indices and badges from step diff
+const getArrayChanges = (arrName: string, step: ExecutionStep | null) => {
+  const changedIndices: number[] = [];
+  const changeBadges: Record<number, string> = {};
+
+  if (step && step.diff && step.diff.changes) {
+    for (const c of step.diff.changes) {
+      if (c.varName === arrName) {
+        if (c.type === 'element_added' && typeof c.targetKey === 'number') {
+          changedIndices.push(c.targetKey);
+          changeBadges[c.targetKey] = '+ NEW';
+        } else if (c.type === 'element_updated' && typeof c.targetKey === 'number') {
+          changedIndices.push(c.targetKey);
+          changeBadges[c.targetKey] = `${c.prevValue} → ${c.newValue}`;
+        }
+      }
+    }
+  }
+
+  return { changedIndices, changeBadges };
+};
+
+const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlightedVar }) => {
   const [contentHeight, setContentHeight] = useState<number>(0);
 
   if (!currentStep) return null;
@@ -630,12 +657,15 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep }) => {
                   {arrays.map((arr) => {
                     const yOffset = layoutIdx * 6;
                     layoutIdx++;
+                    const { changedIndices, changeBadges } = getArrayChanges(arr.name, currentStep);
                     return (
                       <ThreeDArray
                         key={arr.name}
                         name={arr.name}
                         elements={arr.elements!}
                         yOffset={yOffset}
+                        changedIndices={changedIndices}
+                        changeBadges={changeBadges}
                       />
                     );
                   })}
@@ -657,29 +687,38 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep }) => {
                   {/* Render Simple Variables */}
                   {simpleVars.length > 0 && (
                     <group position={[-(hasComplexStructures ? 8 : 0), 0, 0]}>
-                      {simpleVars.map((sv, idx) => (
-                        <group key={sv.name} position={[0, idx * 2.5, 0]}>
-                          <RoundedBox args={[2, 1, 0.5]} radius={0.1} smoothness={4}>
-                            <meshStandardMaterial color="#1f2937" />
-                          </RoundedBox>
-                          <DreiText
-                            position={[0, 0.8, 0]}
-                            fontSize={0.4}
-                            color="#60a5fa"
-                            anchorX="center"
-                          >
-                            {sv.name}
-                          </DreiText>
-                          <DreiText
-                            position={[0, 0, 0.26]}
-                            fontSize={0.5}
-                            color="white"
-                            anchorX="center"
-                          >
-                            {String(sv.simpleValue)}
-                          </DreiText>
-                        </group>
-                      ))}
+                      {simpleVars.map((sv, idx) => {
+                        const isFocused = highlightedVar === sv.name;
+                        return (
+                          <group key={sv.name} position={[0, idx * 2.5, 0]}>
+                            <RoundedBox args={[2.2, 1.2, 0.6]} radius={0.12} smoothness={4}>
+                              <meshStandardMaterial 
+                                color={isFocused ? "#10b981" : "#1f2937"} 
+                                emissive={isFocused ? "#059669" : "#000000"}
+                                emissiveIntensity={isFocused ? 0.6 : 0}
+                              />
+                            </RoundedBox>
+                            <DreiText
+                              position={[0, 0.9, 0]}
+                              fontSize={0.4}
+                              color={isFocused ? "#34d399" : "#60a5fa"}
+                              anchorX="center"
+                              fontWeight="bold"
+                            >
+                              {sv.name}
+                            </DreiText>
+                            <DreiText
+                              position={[0, 0, 0.32]}
+                              fontSize={0.5}
+                              color="white"
+                              anchorX="center"
+                              fontWeight="bold"
+                            >
+                              {String(sv.simpleValue)}
+                            </DreiText>
+                          </group>
+                        );
+                      })}
                     </group>
                   )}
                 </>

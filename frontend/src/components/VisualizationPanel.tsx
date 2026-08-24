@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Box, ChevronRight, Info, Layers, List, Play, Zap, Globe, Database, Terminal, RotateCcw, Plus, Minus } from 'lucide-react';
+import { BookOpen, Box, ChevronRight, Info, Layers, List, Play, Zap, Globe, Database, Terminal, RotateCcw, Plus, Minus, HelpCircle, GitCommit, ArrowRight, Sparkles, AlertTriangle } from 'lucide-react';
 import { ExecutionStep } from '../types';
 import ExecutionScene from './ThreeD/ExecutionScene';
+import WhyModal from './WhyModal';
+import FullProgramFlow from './FullProgramFlow';
 
 interface VisualizationPanelProps {
   currentStep: ExecutionStep | null;
@@ -11,6 +13,7 @@ interface VisualizationPanelProps {
   error: string | null;
   courseId: string;
   code: string;
+  onSelectStep?: (index: number) => void;
 }
 
 const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
@@ -20,10 +23,13 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
   error,
   courseId,
   code,
+  onSelectStep,
 }) => {
-  const [viewMode, setViewMode] = useState<'3d' | 'data' | 'explanation' | 'preview' | 'table' | 'output'>('3d');
+  const [viewMode, setViewMode] = useState<'3d' | 'data' | 'explanation' | 'flow' | 'preview' | 'table' | 'output'>('3d');
   const [cardPosition, setCardPosition] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isWhyModalOpen, setIsWhyModalOpen] = useState(false);
+  const [highlightedVar, setHighlightedVar] = useState<string | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -46,14 +52,14 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
         >
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-red-500 rounded-xl flex items-center justify-center">
-              <Info className="text-white w-6 h-6" />
+              <AlertTriangle className="text-white w-6 h-6" />
             </div>
             <div>
               <h3 className="text-lg font-bold text-red-400">Execution Error</h3>
               <p className="text-red-300/60 text-sm">Compilation or Runtime failed</p>
             </div>
           </div>
-          <div className="bg-black/20 rounded-xl p-4 font-mono text-sm text-red-200 border border-white/5">
+          <div className="bg-black/20 rounded-xl p-4 font-mono text-sm text-red-200 border border-white/5 whitespace-pre-wrap">
             {error}
           </div>
         </motion.div>
@@ -80,12 +86,22 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
           )}
           <ViewTab active={viewMode === 'data'} onClick={() => setViewMode('data')} icon={<Layers className="w-4 h-4" />} label="Memory Data" />
           {!isWebCourse && !isSQLCourse && (
+            <ViewTab active={viewMode === 'flow'} onClick={() => setViewMode('flow')} icon={<GitCommit className="w-4 h-4" />} label="Program Flow" />
+          )}
+          {!isWebCourse && !isSQLCourse && (
             <ViewTab active={viewMode === 'output'} onClick={() => setViewMode('output')} icon={<Terminal className="w-4 h-4" />} label="Console Output" />
           )}
           <ViewTab active={viewMode === 'explanation'} onClick={() => setViewMode('explanation')} icon={<BookOpen className="w-4 h-4" />} label="AI Guide" />
         </div>
-        <div className="text-xs font-mono text-gray-500 hidden sm:block">
-          {currentStep ? `Step ${currentStepIndex + 1} of ${steps.length}` : 'Ready'}
+        <div className="text-xs font-mono text-gray-400 hidden sm:flex items-center gap-3">
+          {currentStep && (
+            <span className="px-2.5 py-1 rounded bg-blue-500/20 text-blue-300 font-semibold border border-blue-500/30">
+              {currentStep.operationType || 'STEP'}
+            </span>
+          )}
+          <span>
+            {currentStep ? `Step ${currentStepIndex + 1} of ${steps.length}` : 'Ready'}
+          </span>
         </div>
       </div>
 
@@ -102,7 +118,9 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
             >
               {currentStep ? (
                 <>
-                  <ExecutionScene currentStep={currentStep} />
+                  <ExecutionScene currentStep={currentStep} highlightedVar={highlightedVar} />
+                  
+                  {/* Floating AI Explanation & What Changed Overlay Card */}
                   <motion.div 
                     key="floating-card"
                     drag
@@ -117,7 +135,7 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                       }));
                     }}
                     style={{ x: cardPosition.x, y: cardPosition.y }}
-                    className="absolute bottom-6 left-6 right-6 md:left-auto md:right-6 p-4 glass rounded-2xl shadow-2xl pointer-events-auto cursor-grab active:cursor-grabbing md:w-80 select-none z-50 border border-white/10"
+                    className="absolute bottom-6 left-6 right-6 md:left-auto md:right-6 p-4 glass rounded-2xl shadow-2xl pointer-events-auto cursor-grab active:cursor-grabbing md:w-88 select-none z-50 border border-white/10"
                   >
                     {/* Header */}
                     <div className="flex items-center justify-between">
@@ -125,7 +143,7 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                         <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/30">
                           <Zap className="text-white w-3 h-3" />
                         </div>
-                        <span className="text-xs font-bold text-gray-300 tracking-wider">AI Explanation</span>
+                        <span className="text-xs font-bold text-gray-300 tracking-wider">AI Guide & What Changed</span>
                       </div>
                       <div className="flex items-center gap-1">
                         <button 
@@ -150,16 +168,39 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                         </button>
                       </div>
                     </div>
+
                     {/* Content */}
                     {!isMinimized && (
-                      <div className="mt-3 text-white text-xs leading-relaxed max-h-36 overflow-y-auto no-scrollbar pr-1">
-                        {currentStep.description || `Executing line ${currentStep.line}...`}
+                      <div className="mt-3 space-y-3">
+                        {/* What Changed Banner */}
+                        {currentStep.diff && currentStep.diff.summary && (
+                          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 font-mono text-xs">
+                            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1">
+                              WHAT CHANGED?
+                            </span>
+                            <pre className="text-emerald-200 whitespace-pre-wrap leading-tight">
+                              {currentStep.diff.summary}
+                            </pre>
+                          </div>
+                        )}
+
+                        <div className="text-white text-xs leading-relaxed max-h-32 overflow-y-auto no-scrollbar pr-1 font-sans">
+                          {currentStep.explanation?.whatHappened || currentStep.description || `Executing line ${currentStep.line}...`}
+                        </div>
+
+                        {/* Interactive Why Button */}
+                        <button
+                          onClick={() => setIsWhyModalOpen(true)}
+                          className="w-full py-1.5 px-3 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 text-blue-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md"
+                        >
+                          <HelpCircle className="w-3.5 h-3.5" /> Why did this happen?
+                        </button>
                       </div>
                     )}
                   </motion.div>
                 </>
               ) : (
-                <EmptyState icon={<Play className="text-blue-500 w-10 h-10 fill-blue-500" />} title="Ready to Visualize?" description="Write code and click Run to start the visualization." />
+                <EmptyState icon={<Play className="text-blue-500 w-10 h-10 fill-blue-500" />} title="Ready to Visualize?" description="Write code and click Run to start the step-by-step visualization." />
               )}
             </motion.div>
           )}
@@ -202,7 +243,6 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {/* Mock data for visualization demo */}
                       <tr className="hover:bg-white/5 transition-colors">
                         <td className="px-4 py-3 font-mono">1</td>
                         <td className="px-4 py-3">User_A</td>
@@ -220,6 +260,24 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
             </motion.div>
           )}
 
+          {viewMode === 'flow' && (
+            <motion.div
+              key="flow"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 overflow-hidden"
+            >
+              <FullProgramFlow
+                steps={steps}
+                currentStepIndex={currentStepIndex}
+                onSelectStep={(idx) => {
+                  if (onSelectStep) onSelectStep(idx);
+                }}
+              />
+            </motion.div>
+          )}
+
           {viewMode === 'data' && (
             <motion.div 
               key="data" 
@@ -230,6 +288,38 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
             >
               {currentStep ? (
                 <>
+                  {/* WHAT CHANGED COMPACT AREA */}
+                  {currentStep.diff && currentStep.diff.summary && (
+                    <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30">
+                      <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4" /> WHAT CHANGED AT THIS STEP?
+                      </h4>
+                      <pre className="font-mono text-sm text-emerald-200 whitespace-pre-wrap leading-relaxed">
+                        {currentStep.diff.summary}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* DATA RELATIONSHIP FLOW */}
+                  {currentStep.relationshipFlow && currentStep.relationshipFlow.length > 0 && (
+                    <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30">
+                      <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <ArrowRight className="w-4 h-4" /> Data Provenance & Relationship Flow
+                      </h4>
+                      <div className="flex flex-wrap items-center gap-2 font-mono text-xs text-white">
+                        {currentStep.relationshipFlow.map((link, i) => (
+                          <div key={i} className="flex items-center gap-2 bg-black/40 px-3 py-2 rounded-xl border border-white/10">
+                            <span className="text-blue-300 font-bold">{link.from}</span>
+                            <span className="text-gray-400">→</span>
+                            <span className="text-yellow-400 font-medium">[{link.label}]</span>
+                            <span className="text-gray-400">→</span>
+                            <span className="text-emerald-300 font-bold">{link.to}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {currentStep.metadata && currentStep.metadata.mode !== 'memory' && (
                     <section className="bg-blue-600/10 border border-blue-500/20 rounded-2xl p-6 mb-6">
                       {currentStep.metadata.mode === 'operator' && currentStep.metadata.operator && (
@@ -350,14 +440,24 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                       )}
                     </section>
                   )}
+
                   <section>
                     <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                      <List className="w-4 h-4" /> Active Variables
+                      <List className="w-4 h-4" /> Memory Variables & Structures
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {Object.entries(currentStep.variables).length > 0 ? (
                         Object.entries(currentStep.variables).map(([name, value]) => (
-                          <VariableCard key={name} name={name} value={value} />
+                          <VariableCard 
+                            key={name} 
+                            name={name} 
+                            value={value} 
+                            isHighlighted={highlightedVar === name}
+                            onClick={() => {
+                              setHighlightedVar(name);
+                              setViewMode('3d');
+                            }}
+                          />
                         ))
                       ) : (
                         <div className="col-span-full py-8 glass rounded-2xl text-center text-gray-500 italic">
@@ -366,11 +466,12 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                       )}
                     </div>
                   </section>
+
                   <section>
                     <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-4">Execution Context</h3>
                     <div className="glass rounded-2xl p-4 font-mono text-sm">
                       <div className="flex items-center gap-2 text-blue-400">
-                        <span className="w-2 h-2 bg-blue-500 rounded-full" />
+                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
                         main()
                       </div>
                       <div className="ml-4 pl-4 border-l border-white/5 py-2 space-y-2">
@@ -396,24 +497,61 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
               className="flex-1 p-8 overflow-auto"
             >
               <div className="max-w-2xl mx-auto space-y-8">
-                <div className="flex items-center gap-4 mb-8">
-                  <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-600/30">
-                    <BookOpen className="text-white w-8 h-8" />
+                <div className="flex items-center justify-between border-b border-white/10 pb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-600/30">
+                      <BookOpen className="text-white w-7 h-7" />
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">AI Step Guide</h2>
+                      <p className="text-gray-400 text-sm">Contextual execution analysis for Step {currentStepIndex + 1}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-2xl font-bold">Step Explanation</h2>
-                    <p className="text-gray-400">Deep dive into what's happening internally.</p>
-                  </div>
+
+                  <button
+                    onClick={() => setIsWhyModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-lg shadow-blue-600/30 flex items-center gap-2 transition-all"
+                  >
+                    <HelpCircle className="w-4 h-4" /> Why did this happen?
+                  </button>
                 </div>
 
                 {currentStep ? (
-                  <div className="space-y-6">
-                    <div className="p-6 glass rounded-2xl border-l-4 border-blue-500">
-                      <h4 className="text-blue-400 font-bold mb-2 flex items-center gap-2 uppercase text-xs tracking-widest">Logic Flow</h4>
-                      <p className="text-gray-200 leading-relaxed text-lg">
-                        {currentStep.description || "The program is executing this line to update the state of your application."}
+                  <div className="space-y-6 font-sans">
+                    {/* WHAT HAPPENED */}
+                    <div className="p-6 glass rounded-2xl border-l-4 border-blue-500 space-y-2">
+                      <h4 className="text-blue-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">
+                        <Zap className="w-4 h-4" /> What Happened?
+                      </h4>
+                      <p className="text-gray-100 text-lg font-medium leading-relaxed">
+                        {currentStep.explanation?.whatHappened || currentStep.description}
+                      </p>
+                      <p className="text-xs font-mono text-gray-400">
+                        Line {currentStep.line}: <span className="text-blue-300 font-semibold">{currentStep.code}</span>
                       </p>
                     </div>
+
+                    {/* WHY IT HAPPENED */}
+                    <div className="p-6 glass rounded-2xl border-l-4 border-purple-500 space-y-2">
+                      <h4 className="text-purple-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">
+                        <BookOpen className="w-4 h-4" /> Why It Happened
+                      </h4>
+                      <p className="text-gray-200 text-sm leading-relaxed">
+                        {currentStep.explanation?.whyItHappened || currentStep.whyDetails}
+                      </p>
+                    </div>
+
+                    {/* WHAT CHANGED */}
+                    {currentStep.diff && currentStep.diff.summary && (
+                      <div className="p-6 glass rounded-2xl border-l-4 border-emerald-500 space-y-2">
+                        <h4 className="text-emerald-400 font-bold uppercase text-xs tracking-widest flex items-center gap-2">
+                          <Sparkles className="w-4 h-4" /> What Changed
+                        </h4>
+                        <pre className="font-mono text-sm text-emerald-200 whitespace-pre-wrap leading-relaxed">
+                          {currentStep.diff.summary}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 ) : (
                    <EmptyState icon={<BookOpen className="text-blue-500 w-10 h-10" />} title="Learning Path" description="Explanations will guide you through each step of the execution." />
@@ -439,31 +577,21 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                       <span className="w-3 h-3 rounded-full bg-[#eab308]/80 border border-[#d97706]/20" />
                       <span className="w-3 h-3 rounded-full bg-[#22c55e]/80 border border-[#16a34a]/20" />
                     </div>
-                    <span className="text-xs font-mono text-gray-400 ml-2">bash - terminal</span>
+                    <span className="text-xs font-mono text-gray-400 ml-2">bash - step output</span>
                   </div>
                   <div className="text-[10px] font-mono text-gray-500">
-                    UTF-8
+                    Step {currentStepIndex + 1} Output
                   </div>
                 </div>
-                {/* Terminal Body */}
+                {/* Step-Aware Terminal Body */}
                 <div className="flex-1 p-6 font-mono text-sm overflow-auto text-emerald-400 space-y-2 selection:bg-emerald-500/20">
-                  {steps.length > 0 ? (
-                    (() => {
-                      const finalOutput = steps[steps.length - 1]?.output;
-                      return finalOutput ? (
-                        <pre className="whitespace-pre-wrap leading-relaxed">{finalOutput}</pre>
-                      ) : (
-                        <div className="text-gray-500 italic">
-                          No stdout output detected from program execution.
-                        </div>
-                      );
-                    })()
+                  {currentStep && currentStep.output ? (
+                    <pre className="whitespace-pre-wrap leading-relaxed">{currentStep.output}</pre>
                   ) : (
                     <div className="text-gray-500 italic">
-                      Terminal ready. Write code and click Run.
+                      No console output emitted at Step {currentStepIndex + 1}.
                     </div>
                   )}
-                  {/* Cursor */}
                   <div className="flex items-center gap-2 mt-2">
                     <span className="text-gray-500">$</span>
                     <span className="w-2 h-4 bg-emerald-400 animate-pulse" />
@@ -474,6 +602,12 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
           )}
         </AnimatePresence>
       </div>
+
+      <WhyModal
+        isOpen={isWhyModalOpen}
+        onClose={() => setIsWhyModalOpen(false)}
+        currentStep={currentStep}
+      />
     </div>
   );
 };
@@ -508,13 +642,20 @@ const EmptyState = ({ icon, title, description }: any) => (
   </div>
 );
 
-const VariableCard = ({ name, value }: any) => {
+const VariableCard = ({ name, value, isHighlighted, onClick }: any) => {
   const isArray = Array.isArray(value);
   return (
-    <div className="p-4 rounded-xl glass glass-hover">
+    <div 
+      onClick={onClick}
+      className={`p-4 rounded-xl glass cursor-pointer transition-all ${
+        isHighlighted ? 'ring-2 ring-blue-500 bg-blue-600/20 shadow-lg shadow-blue-500/20' : 'glass-hover'
+      }`}
+    >
       <div className="flex justify-between items-center mb-2">
-        <span className="text-xs font-bold text-blue-400 font-mono uppercase tracking-widest">{name}</span>
-        <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-500 uppercase">{isArray ? 'Array' : typeof value}</span>
+        <span className="text-xs font-bold text-blue-400 font-mono uppercase tracking-widest flex items-center gap-1.5">
+          {name} {isHighlighted && <span className="text-[10px] text-emerald-400">● 3D Focused</span>}
+        </span>
+        <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-400 uppercase font-mono">{isArray ? 'Array' : typeof value}</span>
       </div>
       <div className="font-mono text-lg text-white">
         {isArray ? (

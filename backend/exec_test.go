@@ -172,6 +172,39 @@ print(n1.val)`
 	t.Logf("Python set/custom obj steps count: %d", len(steps))
 }
 
+func TestExecutePythonPromptExample(t *testing.T) {
+	code := `arr = [10, 20, 30]
+arr.append(40)
+arr.append(50)
+arr[1] = 99
+count = len(arr)`
+	steps, err := executePythonWithTracing(code, nil)
+	if err != nil {
+		t.Fatalf("Python prompt example execution error: %v", err)
+	}
+	steps = generateDescriptions(steps)
+	steps = enrichSteps(steps, "python")
+
+	t.Logf("Prompt Example Total Steps: %d", len(steps))
+	for i, st := range steps {
+		t.Logf("--- STEP %d (Line %d: %s) ---", i+1, st.Line, st.Code)
+		t.Logf("OperationType: %s", st.OperationType)
+		t.Logf("Variables: %v", st.Variables)
+		if st.Diff != nil {
+			t.Logf("Diff Summary: %s", st.Diff.Summary)
+		}
+		if st.Explanation != nil {
+			t.Logf("WhatHappened: %s", st.Explanation.WhatHappened)
+			t.Logf("WhyItHappened: %s", st.Explanation.WhyItHappened)
+		}
+		t.Logf("WhyDetails: %s", st.WhyDetails)
+	}
+
+	if len(steps) < 5 {
+		t.Fatalf("Expected at least 5 execution steps, got %d", len(steps))
+	}
+}
+
 func TestExecutePythonEmptyInputs(t *testing.T) {
 	code := `x = input()
 print(x)`
@@ -181,5 +214,3 @@ print(x)`
 	}
 	t.Logf("Python empty inputs steps count: %d", len(steps))
 }
-
-
