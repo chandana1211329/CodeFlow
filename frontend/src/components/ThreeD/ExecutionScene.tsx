@@ -658,6 +658,7 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlighte
                     const yOffset = layoutIdx * 6;
                     layoutIdx++;
                     const { changedIndices, changeBadges } = getArrayChanges(arr.name, currentStep);
+                    const loopVar = simpleVars.find(v => ['i', 'j', 'k', 'idx', 'index', 'ptr'].includes(v.name.toLowerCase()) && typeof v.simpleValue === 'number');
                     return (
                       <ThreeDArray
                         key={arr.name}
@@ -666,6 +667,8 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlighte
                         yOffset={yOffset}
                         changedIndices={changedIndices}
                         changeBadges={changeBadges}
+                        pointerVarName={loopVar?.name}
+                        pointerIndex={loopVar ? Number(loopVar.simpleValue) : undefined}
                       />
                     );
                   })}

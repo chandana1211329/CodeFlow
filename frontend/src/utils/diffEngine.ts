@@ -58,7 +58,7 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
           newValue: currV,
           description: `New variable created: ${k} = ${formatVal(currV)}`
         });
-        changeSummaries.push(`New variable:\n${k} = ${formatVal(currV)}`);
+        changeSummaries.push(`New variable created\n\n${k}\n${formatVal(currV)}`);
       } else {
         const currJSON = JSON.stringify(currV);
         const prevJSON = JSON.stringify(prevV);
@@ -75,7 +75,7 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
                 newValue: addedVal,
                 description: `${k}: + ${formatVal(addedVal)} (index ${addedIdx})`
               });
-              changeSummaries.push(`${k}\n+ Added element: ${formatVal(addedVal)}\n+ New index: ${addedIdx}`);
+              changeSummaries.push(`Array element added\n\n${k}[${addedIdx}]\n+ ${formatVal(addedVal)}`);
             } else if (currV.length === prevV.length) {
               for (let i = 0; i < currV.length; i++) {
                 if (JSON.stringify(currV[i]) !== JSON.stringify(prevV[i])) {
@@ -87,7 +87,7 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
                     newValue: currV[i],
                     description: `${k}[${i}]: ${formatVal(prevV[i])} → ${formatVal(currV[i])}`
                   });
-                  changeSummaries.push(`${k}[${i}]\nPrevious value: ${formatVal(prevV[i])}\nNew value: ${formatVal(currV[i])}`);
+                  changeSummaries.push(`Array element updated\n\n${k}[${i}]\n\n${formatVal(prevV[i])} → ${formatVal(currV[i])}`);
                 }
               }
             } else {
@@ -96,7 +96,7 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
                 type: 'element_removed',
                 description: `${k}: element removed`
               });
-              changeSummaries.push(`${k}: element removed`);
+              changeSummaries.push(`Array element removed\n\n${k}`);
             }
           } else {
             changeDetails.push({
@@ -106,7 +106,12 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
               newValue: currV,
               description: `${k}: ${formatVal(prevV)} → ${formatVal(currV)}`
             });
-            changeSummaries.push(`${k}\n${formatVal(prevV)} → ${formatVal(currV)}`);
+
+            if (['i', 'j', 'k', 'idx', 'index', 'count'].includes(k)) {
+              changeSummaries.push(`Loop variable updated\n\n${k}\n${formatVal(prevV)} → ${formatVal(currV)}`);
+            } else {
+              changeSummaries.push(`Variable updated\n\n${k}\n${formatVal(prevV)} → ${formatVal(currV)}`);
+            }
           }
         }
       }

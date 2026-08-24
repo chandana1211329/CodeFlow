@@ -120,84 +120,30 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                 <>
                   <ExecutionScene currentStep={currentStep} highlightedVar={highlightedVar} />
                   
-                  {/* Floating AI Explanation & What Changed Overlay Card */}
-                  <motion.div 
-                    key="floating-card"
-                    drag
-                    dragConstraints={containerRef}
-                    dragElastic={0}
-                    dragMomentum={false}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onDragEnd={(event, info) => {
-                      setCardPosition(prev => ({
-                        x: prev.x + info.offset.x,
-                        y: prev.y + info.offset.y
-                      }));
-                    }}
-                    style={{ x: cardPosition.x, y: cardPosition.y }}
-                    className="absolute bottom-6 left-6 right-6 md:left-auto md:right-6 p-4 glass rounded-2xl shadow-2xl pointer-events-auto cursor-grab active:cursor-grabbing md:w-88 select-none z-50 border border-white/10"
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/30">
-                          <Zap className="text-white w-3 h-3" />
-                        </div>
-                        <span className="text-xs font-bold text-gray-300 tracking-wider">AI Guide & What Changed</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setCardPosition({ x: 0, y: 0 });
-                          }}
-                          className="p-1 hover:bg-white/5 rounded text-gray-500 hover:text-white transition-colors"
-                          title="Reset Position"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                        </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsMinimized(!isMinimized);
-                          }}
-                          className="p-1 hover:bg-white/5 rounded text-gray-500 hover:text-white transition-colors"
-                          title={isMinimized ? "Expand" : "Collapse"}
-                        >
-                          {isMinimized ? <Plus className="w-3.5 h-3.5" /> : <Minus className="w-3.5 h-3.5" />}
-                        </button>
+                  {/* Sleek Non-Intrusive Bottom HUD Bar (Does NOT obscure 3D scene) */}
+                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 pointer-events-auto z-40">
+                    {/* What Changed & Step Summary Pill */}
+                    <div className="flex items-center gap-3 p-2.5 px-4 bg-black/70 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl max-w-xl truncate">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                      <div className="font-mono text-xs truncate">
+                        <span className="text-gray-400 font-bold mr-2">LINE {currentStep.line}:</span>
+                        <span className="text-white font-semibold mr-3">{currentStep.code}</span>
+                        {currentStep.diff?.summary && (
+                          <span className="text-emerald-300 font-semibold bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
+                            {currentStep.diff.summary.split('\n')[0]}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Content */}
-                    {!isMinimized && (
-                      <div className="mt-3 space-y-3">
-                        {/* What Changed Banner */}
-                        {currentStep.diff && currentStep.diff.summary && (
-                          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 font-mono text-xs">
-                            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block mb-1">
-                              WHAT CHANGED?
-                            </span>
-                            <pre className="text-emerald-200 whitespace-pre-wrap leading-tight">
-                              {currentStep.diff.summary}
-                            </pre>
-                          </div>
-                        )}
-
-                        <div className="text-white text-xs leading-relaxed max-h-32 overflow-y-auto no-scrollbar pr-1 font-sans">
-                          {currentStep.explanation?.whatHappened || currentStep.description || `Executing line ${currentStep.line}...`}
-                        </div>
-
-                        {/* Interactive Why Button */}
-                        <button
-                          onClick={() => setIsWhyModalOpen(true)}
-                          className="w-full py-1.5 px-3 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 border border-blue-500/40 text-blue-300 hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-all shadow-md"
-                        >
-                          <HelpCircle className="w-3.5 h-3.5" /> Why did this happen?
-                        </button>
-                      </div>
-                    )}
-                  </motion.div>
+                    {/* Interactive Why Button */}
+                    <button
+                      onClick={() => setIsWhyModalOpen(true)}
+                      className="px-4 py-2 rounded-2xl bg-blue-600/80 hover:bg-blue-500 backdrop-blur-md text-white text-xs font-bold border border-blue-400/40 shadow-xl shadow-blue-600/30 flex items-center gap-2 transition-all flex-shrink-0"
+                    >
+                      <HelpCircle className="w-4 h-4" /> Why did this happen?
+                    </button>
+                  </div>
                 </>
               ) : (
                 <EmptyState icon={<Play className="text-blue-500 w-10 h-10 fill-blue-500" />} title="Ready to Visualize?" description="Write code and click Run to start the step-by-step visualization." />

@@ -88,6 +88,33 @@ export const WhyModal: React.FC<WhyModalProps> = ({ isOpen, onClose, currentStep
               </p>
             </div>
 
+            {/* Loop Lifecycle Breakdown if loop line */}
+            {(code.includes('for') || code.includes('while') || operationType === 'LOOP') && (
+              <div className="p-5 rounded-xl bg-blue-500/10 border border-blue-500/30 space-y-3 font-mono text-xs">
+                <div className="flex items-center gap-2 font-bold uppercase text-blue-400 tracking-wider">
+                  <ArrowRight className="w-4 h-4" /> Loop Execution Lifecycle Stage
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-300">
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-gray-500 text-[10px] block">1. Initialization</span>
+                    <span className="text-blue-300 font-bold">i = 0</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-gray-500 text-[10px] block">2. Condition Evaluation</span>
+                    <span className="text-emerald-400 font-bold">i &lt; n (0 &lt; 4) → TRUE</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-gray-500 text-[10px] block">3. Body Execution</span>
+                    <span className="text-purple-300 font-bold">Executing Loop Body</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-black/40 border border-white/5">
+                    <span className="text-gray-500 text-[10px] block">4. Increment Step</span>
+                    <span className="text-yellow-300 font-bold">i++ (0 → 1)</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Values Involved */}
             {currentStep.variables && Object.keys(currentStep.variables).length > 0 && (
               <div className="p-4 rounded-xl bg-black/30 border border-white/5">

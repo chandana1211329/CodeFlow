@@ -76,6 +76,7 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({ code, onChange, currentLine
         onMount={handleEditorDidMount}
         theme="vs-dark"
         options={{
+          wordWrap: 'off',
           minimap: { enabled: false },
           fontSize: 14,
           lineNumbers: 'on',
@@ -87,6 +88,15 @@ const MonacoEditor: React.FC<MonacoEditorProps> = ({ code, onChange, currentLine
           folding: true,
           lineDecorationsWidth: 10,
           lineNumbersMinChars: 3,
+          padding: { top: 12, bottom: 12 },
+          renderLineHighlight: 'all',
+          scrollbar: {
+            horizontal: 'visible',
+            vertical: 'visible',
+            horizontalScrollbarSize: 10,
+            verticalScrollbarSize: 10,
+            useShadows: false,
+          },
         }}
       />
     </div>
