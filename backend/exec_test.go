@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -30,12 +31,52 @@ func TestExecutePythonWithStackQueue(t *testing.T) {
 	code := `s = Stack()
 s.push(10)
 s.push(20)
-val = s.pop()`
+val = s.pop()
+s_size = s.size()
+
+q = Queue()
+q.enqueue(100)
+q.enqueue(200)
+q_val = q.dequeue()
+q_size = q.size()
+q_empty = q.is_empty()`
 	steps, err := executePythonWithTracing(code, nil)
 	if err != nil {
-		t.Fatalf("Python Stack error: %v", err)
+		t.Fatalf("Python Stack/Queue error: %v", err)
 	}
-	t.Logf("Python Stack steps count: %d", len(steps))
+	t.Logf("Python Stack/Queue steps count: %d", len(steps))
+	lastStep := steps[len(steps)-1]
+	if fmt.Sprintf("%v", lastStep.Variables["s_size"]) != "1" {
+		t.Errorf("Expected s_size 1, got %v (%T)", lastStep.Variables["s_size"], lastStep.Variables["s_size"])
+	}
+	if fmt.Sprintf("%v", lastStep.Variables["q_size"]) != "1" {
+		t.Errorf("Expected q_size 1, got %v (%T)", lastStep.Variables["q_size"], lastStep.Variables["q_size"])
+	}
+}
+
+func TestExecutePythonStackQueueDynamicCapacity(t *testing.T) {
+	code := `s = Stack(2)
+for i in range(15):
+    s.push(i)
+s_top = s.peek()
+s_sz = s.size()
+
+q = Queue(2)
+for i in range(15):
+    q.enqueue(i)
+q_front = q.peek()
+q_sz = q.size()`
+	steps, err := executePythonWithTracing(code, nil)
+	if err != nil {
+		t.Fatalf("Python Stack/Queue dynamic capacity error: %v", err)
+	}
+	lastStep := steps[len(steps)-1]
+	if fmt.Sprintf("%v", lastStep.Variables["s_sz"]) != "15" {
+		t.Errorf("Expected Stack size 15, got %v (%T)", lastStep.Variables["s_sz"], lastStep.Variables["s_sz"])
+	}
+	if fmt.Sprintf("%v", lastStep.Variables["q_sz"]) != "15" {
+		t.Errorf("Expected Queue size 15, got %v (%T)", lastStep.Variables["q_sz"], lastStep.Variables["q_sz"])
+	}
 }
 
 func TestExecutePythonRuntimeError(t *testing.T) {

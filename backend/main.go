@@ -1226,9 +1226,10 @@ class Stack:
         self.top = -1
 
     def push(self, val):
-        if self.top < len(self.arr) - 1:
-            self.top += 1
-            self.arr[self.top] = val
+        if self.top >= len(self.arr) - 1:
+            self.arr.extend([None] * max(len(self.arr), 10))
+        self.top += 1
+        self.arr[self.top] = val
 
     def pop(self):
         if self.top >= 0:
@@ -1254,7 +1255,7 @@ class Queue:
         self.arr = [None] * capacity
         self.front = 0
         self.rear = -1
-        self.size = 0
+        self._size = 0
 
     def enqueue(self, val):
         self.add(val)
@@ -1263,10 +1264,17 @@ class Queue:
         self.offer(val)
 
     def offer(self, val):
-        if self.size < len(self.arr):
-            self.rear = (self.rear + 1) %% len(self.arr)
-            self.arr[self.rear] = val
-            self.size += 1
+        if self._size >= len(self.arr):
+            new_capacity = len(self.arr) * 2 if len(self.arr) > 0 else 10
+            new_arr = [None] * new_capacity
+            for i in range(self._size):
+                new_arr[i] = self.arr[(self.front + i) %% len(self.arr)]
+            self.arr = new_arr
+            self.front = 0
+            self.rear = self._size - 1
+        self.rear = (self.rear + 1) %% len(self.arr)
+        self.arr[self.rear] = val
+        self._size += 1
 
     def dequeue(self):
         return self.poll()
@@ -1275,24 +1283,24 @@ class Queue:
         return self.poll()
 
     def poll(self):
-        if self.size > 0:
+        if self._size > 0:
             val = self.arr[self.front]
             self.arr[self.front] = None
             self.front = (self.front + 1) %% len(self.arr)
-            self.size -= 1
+            self._size -= 1
             return val
         return None
 
     def peek(self):
-        if self.size > 0:
+        if self._size > 0:
             return self.arr[self.front]
         return None
 
     def is_empty(self):
-        return self.size == 0
+        return self._size == 0
 
     def size(self):
-        return self.size
+        return self._size
 
 # Decode the user code
 user_code = base64.b64decode("%s").decode('utf-8')

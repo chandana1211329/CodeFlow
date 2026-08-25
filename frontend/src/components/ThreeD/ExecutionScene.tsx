@@ -515,7 +515,7 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlighte
             topIndex = top;
             elements = foundArray.slice(0, top + 1);
           } else {
-            const size = valObj.size !== undefined ? Number(valObj.size) : (valObj.count !== undefined ? Number(valObj.count) : (valObj.elementCount !== undefined ? Number(valObj.elementCount) : undefined));
+            const size = valObj.size !== undefined ? Number(valObj.size) : (valObj._size !== undefined ? Number(valObj._size) : (valObj.count !== undefined ? Number(valObj.count) : (valObj.elementCount !== undefined ? Number(valObj.elementCount) : undefined)));
             if (size !== undefined) {
               elements = foundArray.slice(0, size);
             } else {
@@ -526,7 +526,7 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlighte
           detectedType = 'queue';
           const front = valObj.front !== undefined ? Number(valObj.front) : (valObj.head !== undefined ? Number(valObj.head) : undefined);
           const rear = valObj.rear !== undefined ? Number(valObj.rear) : (valObj.tail !== undefined ? Number(valObj.tail) : undefined);
-          const size = valObj.size !== undefined ? Number(valObj.size) : (valObj.count !== undefined ? Number(valObj.count) : (valObj.elementCount !== undefined ? Number(valObj.elementCount) : undefined));
+          const size = valObj.size !== undefined ? Number(valObj.size) : (valObj._size !== undefined ? Number(valObj._size) : (valObj.count !== undefined ? Number(valObj.count) : (valObj.elementCount !== undefined ? Number(valObj.elementCount) : undefined)));
 
           if (front !== undefined && rear !== undefined) {
             frontIndex = front;
