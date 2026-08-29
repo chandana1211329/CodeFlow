@@ -684,6 +684,7 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlighte
                         root={ns.root}
                         yOffset={yOffset}
                         currentStep={currentStep}
+                        treeState={currentStep?.metadata?.treeState}
                       />
                     );
                   })}

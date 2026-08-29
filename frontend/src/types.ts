@@ -79,6 +79,36 @@ export type NodeVisualState =
   | 'TRAVERSING' 
   | 'PARENT';
 
+export interface RuntimeTreeNode {
+  id: string;
+  type: string;
+  val: any;
+  address?: string;
+  leftId: string | null;
+  rightId: string | null;
+  pointers: string[];
+  depth: number;
+}
+
+export interface RuntimeTreeEdge {
+  sourceId: string;
+  targetId: string;
+  type: 'left' | 'right' | 'child';
+  label: string;
+  isCyclic?: boolean;
+}
+
+export interface StructuredTreeState {
+  rootId: string | null;
+  treeType: 'BINARY_TREE' | 'BST' | 'GENERAL_TREE';
+  nodes: RuntimeTreeNode[];
+  edges: RuntimeTreeEdge[];
+  activeNodeId?: string;
+  comparingNodeId?: string;
+  insertedNodeId?: string;
+  hasCycle?: boolean;
+}
+
 export interface TreeStepMetadata {
   treeType?: 'BINARY_TREE' | 'BST' | 'AVL' | 'HEAP';
   operation?: TreeOperationType;
@@ -103,6 +133,7 @@ export interface StepMetadata {
   conditional?: ConditionalMetadata;
   loop?: LoopMetadata;
   tree?: TreeStepMetadata;
+  treeState?: StructuredTreeState;
 }
 
 export interface CallStackFrame {

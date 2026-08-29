@@ -240,13 +240,166 @@ export function enrichStepClientSide(steps: ExecutionStep[], language?: string):
       valuesInvolved: currVars
     };
 
+    const treeState = step.metadata?.treeState || buildTreeStateClientSide(step);
+
+    const metadata = {
+      ...(step.metadata || { mode: 'memory' }),
+      ...(treeState ? { mode: 'tree' as const, treeState } : {})
+    };
+
     return {
       ...step,
       operationType: opType,
       diff,
       explanation,
+      metadata,
       whyDetails: step.whyDetails || whyDetails,
       relationshipFlow: step.relationshipFlow || relLinks
     };
   });
+}
+
+function extractId(obj: any): string {
+  if (!obj || typeof obj !== 'object') return '';
+  if (obj._id) return String(obj._id);
+  if (obj._type) {
+    const val = obj.val !== undefined ? obj.val : obj.data !== undefined ? obj.data : obj.value;
+    return `${obj._type}#${val}`;
+  }
+  return '';
+}
+
+function isNode(obj: any): boolean {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
+  const t = (obj._type || '').toLowerCase();
+  return 'left' in obj || 'right' in obj || t.includes('node') || t.includes('tree') || t.includes('bst');
+}
+
+export function buildTreeStateClientSide(step: ExecutionStep): any | undefined {
+  const allVars = { ...(step.variables || {}), ...(step.scopeVars || {}) };
+  const heapObjects = new Map<string, any>();
+  const varPointers = new Map<string, string[]>();
+
+  const scan = (obj: any, vName: string) => {
+    if (!obj || typeof obj !== 'object') return;
+    const objId = extractId(obj);
+    if (!objId) return;
+
+    if (vName) {
+      const ptrs = varPointers.get(objId) || [];
+      if (!ptrs.includes(vName)) ptrs.push(vName);
+      varPointers.set(objId, ptrs);
+    }
+
+    if (heapObjects.has(objId)) return;
+
+    if (isNode(obj)) {
+      heapObjects.set(objId, obj);
+      if (obj.left) scan(obj.left, '');
+      if (obj.right) scan(obj.right, '');
+    }
+  };
+
+  for (const [k, v] of Object.entries(allVars)) {
+    scan(v, k);
+  }
+
+  if (heapObjects.size === 0) return undefined;
+
+  const parentCount = new Map<string, number>();
+  heapObjects.forEach((obj, id) => {
+    if (!parentCount.has(id)) parentCount.set(id, 0);
+    const lId = extractId(obj.left);
+    const rId = extractId(obj.right);
+    if (lId) parentCount.set(lId, (parentCount.get(lId) || 0) + 1);
+    if (rId) parentCount.set(rId, (parentCount.get(rId) || 0) + 1);
+  });
+
+  let rootId = extractId(allVars['root']);
+  if (!rootId || !heapObjects.has(rootId)) {
+    parentCount.forEach((cnt, id) => {
+      if (cnt === 0 && !rootId) {
+        rootId = id;
+      }
+    });
+  }
+  if (!rootId) {
+    heapObjects.forEach((_, id) => {
+      if (!rootId) rootId = id;
+    });
+  }
+
+  const nodes: any[] = [];
+  const edges: any[] = [];
+  const visited = new Set<string>();
+  let hasCycle = false;
+
+  const traverse = (id: string, depth: number) => {
+    if (!id || visited.has(id)) {
+      if (id) hasCycle = true;
+      return;
+    }
+    const obj = heapObjects.get(id);
+    if (!obj) return;
+
+    visited.add(id);
+
+    const val = obj.val !== undefined ? obj.val : obj.data !== undefined ? obj.data : obj.value !== undefined ? obj.value : '?';
+    const lId = extractId(obj.left);
+    const rId = extractId(obj.right);
+    const ptrs = varPointers.get(id) || [];
+
+    nodes.push({
+      id,
+      type: obj._type || 'TreeNode',
+      val,
+      address: id,
+      leftId: lId || null,
+      rightId: rId || null,
+      pointers: ptrs,
+      depth
+    });
+
+    if (lId) {
+      edges.push({
+        sourceId: id,
+        targetId: lId,
+        type: 'left',
+        label: 'L',
+        isCyclic: visited.has(lId)
+      });
+      traverse(lId, depth + 1);
+    }
+
+    if (rId) {
+      edges.push({
+        sourceId: id,
+        targetId: rId,
+        type: 'right',
+        label: 'R',
+        isCyclic: visited.has(rId)
+      });
+      traverse(rId, depth + 1);
+    }
+  };
+
+  traverse(rootId, 0);
+
+  let activeNodeId: string | undefined;
+  let comparingNodeId: string | undefined;
+
+  varPointers.forEach((ptrs, id) => {
+    if (ptrs.some((p: string) => ['curr', 'node', 'current', 'p'].includes(p))) activeNodeId = id;
+    if (ptrs.some((p: string) => ['comparing', 'target'].includes(p))) comparingNodeId = id;
+  });
+
+  return {
+    rootId,
+    treeType: 'BST',
+    nodes,
+    edges,
+    activeNodeId,
+    comparingNodeId,
+    hasCycle
+  };
 }

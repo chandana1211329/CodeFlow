@@ -2,7 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text, Sphere, Line, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
-import { ExecutionStep } from '../../types';
+import { ExecutionStep, StructuredTreeState, RuntimeTreeNode } from '../../types';
 
 interface NodeData {
   val?: any;
@@ -479,7 +479,15 @@ const TreeNodeMesh: React.FC<{
   );
 };
 
-export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, root, yOffset, currentStep }) => {
+interface ThreeDNodeStructureProps {
+  name: string;
+  root: NodeData;
+  yOffset: number;
+  currentStep?: ExecutionStep | null;
+  treeState?: StructuredTreeState | null;
+}
+
+export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, root, yOffset, currentStep, treeState }) => {
   // Compute pointer references targeting each node object
   const pointerMap = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -502,8 +510,71 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
     return map;
   }, [currentStep]);
 
+  // Render from StructuredTreeState if available
+  const structuredData = useMemo(() => {
+    if (!treeState || !treeState.nodes || treeState.nodes.length === 0) return null;
+
+    const nodePosMap = new Map<string, [number, number, number]>();
+    const nodeMap = new Map<string, RuntimeTreeNode>();
+    treeState.nodes.forEach((n: RuntimeTreeNode) => nodeMap.set(n.id, n));
+
+    const rootId = treeState.rootId || treeState.nodes[0]?.id;
+    if (!rootId) return null;
+
+    // Symmetrical layout
+    const layoutNode = (id: string, depth: number, offset: number) => {
+      if (!id || nodePosMap.has(id)) return;
+      const node = nodeMap.get(id);
+      if (!node) return;
+
+      const spread = Math.max(1.6, 3.8 / Math.pow(1.3, depth));
+      const x = offset * spread;
+      const y = -depth * 2.5;
+      nodePosMap.set(id, [x, y, 0]);
+
+      if (node.leftId) layoutNode(node.leftId, depth + 1, offset - (1.0 / (depth + 1)));
+      if (node.rightId) layoutNode(node.rightId, depth + 1, offset + (1.0 / (depth + 1)));
+    };
+
+    layoutNode(rootId, 0, 0);
+
+    // Fallback for unpositioned floating nodes
+    treeState.nodes.forEach((n: RuntimeTreeNode, idx: number) => {
+      if (!nodePosMap.has(n.id)) {
+        nodePosMap.set(n.id, [(idx + 1) * 3.0, -n.depth * 2.5, 0]);
+      }
+    });
+
+    const links = treeState.edges.map((edge: any) => {
+      const srcPos = nodePosMap.get(edge.sourceId) || [0, 0, 0];
+      const tgtPos = nodePosMap.get(edge.targetId) || [0, 0, 0];
+      return {
+        source: srcPos,
+        target: tgtPos,
+        isLinkedList: false,
+        isDoubly: false,
+        type: edge.type as 'left' | 'right',
+        label: edge.label,
+        isCyclic: edge.isCyclic
+      };
+    });
+
+    const renderedNodes = treeState.nodes.map((n: RuntimeTreeNode) => ({
+      id: `node_${n.id}`,
+      rawId: n.id,
+      val: n.val,
+      address: n.address || n.id,
+      position: nodePosMap.get(n.id) || [0, 0, 0] as [number, number, number],
+      pointers: n.pointers || []
+    }));
+
+    return { nodes: renderedNodes, links };
+  }, [treeState]);
+
   // Pre-traverse to assign memory addresses and lay out nodes
   const { nodes, links } = useMemo(() => {
+    if (structuredData) return structuredData;
+
     const positionedNodes: PositionedNode[] = [];
     const links: { 
       source: [number, number, number]; 
@@ -696,7 +767,7 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
 
   return (
     <group position={[0, yOffset, 0]}>
-      {links.map((link, i) => {
+      {links.map((link: any, i: number) => {
         let startPoint: [number, number, number] = link.source;
         let endPoint: [number, number, number] = link.target;
         let lineColor = '#9ca3af';
@@ -755,7 +826,7 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
         );
       })}
       
-      {nodes.map((node, i) => {
+      {nodes.map((node: any, i: number) => {
         const ptrs = pointerMap.get(node.rawId) || pointerMap.get(node.address) || [];
         const isCurrent = ptrs.includes('curr') || ptrs.includes('node') || ptrs.includes('current') || ptrs.includes('p');
         const isMatched = (currentStep?.operationType === 'SEARCH MATCH' || currentStep?.metadata?.tree?.decision === 'FOUND') && (isCurrent || i === nodes.length - 1);

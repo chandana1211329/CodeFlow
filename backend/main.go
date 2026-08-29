@@ -21,6 +21,36 @@ import (
 	"gorm.io/gorm"
 )
 
+type RuntimeTreeNode struct {
+	ID       string   `json:"id"`
+	Type     string   `json:"type"`
+	Val      interface{} `json:"val"`
+	Address  string   `json:"address,omitempty"`
+	LeftID   *string  `json:"leftId"`
+	RightID  *string  `json:"rightId"`
+	Pointers []string `json:"pointers"`
+	Depth    int      `json:"depth"`
+}
+
+type RuntimeTreeEdge struct {
+	SourceID string `json:"sourceId"`
+	TargetID string `json:"targetId"`
+	Type     string `json:"type"` // "left", "right", "child"
+	Label    string `json:"label"`
+	IsCyclic bool   `json:"isCyclic,omitempty"`
+}
+
+type StructuredTreeState struct {
+	RootID          *string           `json:"rootId"`
+	TreeType        string            `json:"treeType"`
+	Nodes           []RuntimeTreeNode `json:"nodes"`
+	Edges           []RuntimeTreeEdge `json:"edges"`
+	ActiveNodeID    string            `json:"activeNodeId,omitempty"`
+	ComparingNodeID string            `json:"comparingNodeId,omitempty"`
+	InsertedNodeID  string            `json:"insertedNodeId,omitempty"`
+	HasCycle        bool              `json:"hasCycle,omitempty"`
+}
+
 type TreeStepMetadata struct {
 	TreeType           string        `json:"treeType,omitempty"`
 	Operation          string        `json:"operation,omitempty"`
@@ -40,11 +70,12 @@ type TreeStepMetadata struct {
 }
 
 type StepMetadata struct {
-	Mode        string            `json:"mode"` // "memory", "operator", "conditional", "loop", "data_structure", "tree"
-	Operator    *OperatorMetadata `json:"operator,omitempty"`
+	Mode        string               `json:"mode"` // "memory", "operator", "conditional", "loop", "data_structure", "tree"
+	Operator    *OperatorMetadata    `json:"operator,omitempty"`
 	Conditional *ConditionalMetadata `json:"conditional,omitempty"`
-	Loop        *LoopMetadata     `json:"loop,omitempty"`
-	Tree        *TreeStepMetadata `json:"tree,omitempty"`
+	Loop        *LoopMetadata        `json:"loop,omitempty"`
+	Tree        *TreeStepMetadata    `json:"tree,omitempty"`
+	TreeState   *StructuredTreeState `json:"treeState,omitempty"`
 }
 
 type OperatorMetadata struct {
