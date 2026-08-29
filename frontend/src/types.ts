@@ -54,11 +54,55 @@ export interface LoopMetadata {
   isComplete: boolean;
 }
 
+export type TreeOperationType = 
+  | 'CREATE' 
+  | 'INSERT' 
+  | 'SEARCH' 
+  | 'TRAVERSAL' 
+  | 'DELETE' 
+  | 'COMPARE' 
+  | 'BRANCH_LEFT' 
+  | 'BRANCH_RIGHT' 
+  | 'RECURSE_CALL' 
+  | 'RECURSE_RETURN' 
+  | 'BASE_CASE';
+
+export type NodeVisualState = 
+  | 'NORMAL' 
+  | 'CURRENT' 
+  | 'COMPARING' 
+  | 'VISITED' 
+  | 'FOUND' 
+  | 'INSERTED' 
+  | 'NULL_REACHED' 
+  | 'SEARCHING' 
+  | 'TRAVERSING' 
+  | 'PARENT';
+
+export interface TreeStepMetadata {
+  treeType?: 'BINARY_TREE' | 'BST' | 'AVL' | 'HEAP';
+  operation?: TreeOperationType;
+  activeNodeId?: string;
+  activeNodeVal?: any;
+  comparingNodeId?: string;
+  comparingVal?: any;
+  targetVal?: any;
+  decision?: 'LEFT' | 'RIGHT' | 'FOUND' | 'NULL_REACHED';
+  comparisonExpr?: string;
+  substitutedExpr?: string;
+  traversalType?: 'inorder' | 'preorder' | 'postorder' | 'levelorder';
+  traversalSequence?: any[];
+  callStackDepth?: number;
+  nullBranchType?: 'left' | 'right';
+  explanationSummary?: string;
+}
+
 export interface StepMetadata {
-  mode: 'memory' | 'operator' | 'conditional' | 'loop' | 'data_structure';
+  mode: 'memory' | 'operator' | 'conditional' | 'loop' | 'data_structure' | 'tree';
   operator?: OperatorMetadata;
   conditional?: ConditionalMetadata;
   loop?: LoopMetadata;
+  tree?: TreeStepMetadata;
 }
 
 export interface CallStackFrame {

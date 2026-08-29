@@ -134,53 +134,63 @@ count = len(arr)`;
   const currentStep = currentStepIndex >= 0 ? steps[currentStepIndex] : null;
 
   const EXAMPLES: Record<string, string> = {
-    python: `# 3D Array Visualization Example
-# 1. Create an initial array
-arr = [10, 20, 30]
+    python: `# Binary Search Tree (BST) Execution Example
+class TreeNode:
+    def __init__(self, val):
+        self.val = val
+        self.left = None
+        self.right = None
 
-# 2. Add elements to the array
-arr.append(40)
-arr.append(50)
+def insert(root, val):
+    if root is None:
+        return TreeNode(val)
+    if val < root.val:
+        root.left = insert(root.left, val)
+    else:
+        root.right = insert(root.right, val)
+    return root
 
-# 3. Modify an existing element
-arr[1] = 99
+# 1. Build BST root & subtrees
+root = TreeNode(50)
+root = insert(root, 30)
+root = insert(root, 70)
+root = insert(root, 40)
 
-# 4. Create another variable
-count = len(arr)`,
+# 2. Search key in BST
+def search(node, target):
+    if node is None or node.val == target:
+        return node
+    if target < node.val:
+        return search(node.left, target)
+    return search(node.right, target)
+
+found = search(root, 40)`,
     java: `public class Example {
-    public static void main(String[] args) {
-        // 1. Create an array
-        int[] arr = {10, 20, 30, 40};
-        int n = arr.length;
-
-        // 2. Access elements
-        System.out.println("Array length: " + n);
-
-        // 3. Loop through the array
-        for (int i = 0; i < n; i++) {
-            System.out.println("Element at " + i + ": " + arr[i]);
+    static class TreeNode {
+        int val;
+        TreeNode left;
+        TreeNode right;
+        TreeNode(int val) {
+            this.val = val;
         }
-
-        // 4. Create non-primitive array
-        String[] names = {"Lakshit", "Rahul", "Pankaj"};
-    }
-}`,
-    c: `#include <stdio.h>
-
-int main() {
-    // 1. Create an array
-    int arr[] = {10, 20, 30, 40, 50};
-    int n = 5;
-
-    // 2. Loop through the array
-    for (int i = 0; i < n; i++) {
-        printf("Element %d: %d\\n", i, arr[i]);
     }
 
-    // 3. Modify an element
-    arr[2] = 99;
+    public static TreeNode insert(TreeNode root, int val) {
+        if (root == null) return new TreeNode(val);
+        if (val < root.val) {
+            root.left = insert(root.left, val);
+        } else {
+            root.right = insert(root.right, val);
+        }
+        return root;
+    }
 
-    return 0;
+    public static void main(String[] args) {
+        TreeNode root = new TreeNode(50);
+        root = insert(root, 30);
+        root = insert(root, 70);
+        root = insert(root, 40);
+    }
 }`
   };
 

@@ -21,11 +21,30 @@ import (
 	"gorm.io/gorm"
 )
 
+type TreeStepMetadata struct {
+	TreeType           string        `json:"treeType,omitempty"`
+	Operation          string        `json:"operation,omitempty"`
+	ActiveNodeID       string        `json:"activeNodeId,omitempty"`
+	ActiveNodeVal      interface{}   `json:"activeNodeVal,omitempty"`
+	ComparingNodeID    string        `json:"comparingNodeId,omitempty"`
+	ComparingVal       interface{}   `json:"comparingVal,omitempty"`
+	TargetVal          interface{}   `json:"targetVal,omitempty"`
+	Decision           string        `json:"decision,omitempty"`
+	ComparisonExpr     string        `json:"comparisonExpr,omitempty"`
+	SubstitutedExpr    string        `json:"substitutedExpr,omitempty"`
+	TraversalType      string        `json:"traversalType,omitempty"`
+	TraversalSequence  []interface{} `json:"traversalSequence,omitempty"`
+	CallStackDepth     int           `json:"callStackDepth,omitempty"`
+	NullBranchType     string        `json:"nullBranchType,omitempty"`
+	ExplanationSummary string        `json:"explanationSummary,omitempty"`
+}
+
 type StepMetadata struct {
-	Mode        string               `json:"mode"` // "memory", "operator", "conditional", "loop", "data_structure"
-	Operator    *OperatorMetadata    `json:"operator,omitempty"`
+	Mode        string            `json:"mode"` // "memory", "operator", "conditional", "loop", "data_structure", "tree"
+	Operator    *OperatorMetadata `json:"operator,omitempty"`
 	Conditional *ConditionalMetadata `json:"conditional,omitempty"`
-	Loop        *LoopMetadata        `json:"loop,omitempty"`
+	Loop        *LoopMetadata     `json:"loop,omitempty"`
+	Tree        *TreeStepMetadata `json:"tree,omitempty"`
 }
 
 type OperatorMetadata struct {

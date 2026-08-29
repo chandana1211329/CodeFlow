@@ -121,19 +121,39 @@ const VisualizationPanel: React.FC<VisualizationPanelProps> = ({
                   <ExecutionScene currentStep={currentStep} highlightedVar={highlightedVar} />
                   
                   {/* Sleek Non-Intrusive Bottom HUD Bar (Does NOT obscure 3D scene) */}
-                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 pointer-events-auto z-40">
+                  <div className="absolute bottom-4 left-4 right-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pointer-events-auto z-40">
                     {/* What Changed & Step Summary Pill */}
-                    <div className="flex items-center gap-3 p-2.5 px-4 bg-black/70 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl max-w-xl truncate">
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
-                      <div className="font-mono text-xs truncate">
-                        <span className="text-gray-400 font-bold mr-2">LINE {currentStep.line}:</span>
-                        <span className="text-white font-semibold mr-3">{currentStep.code}</span>
-                        {currentStep.diff?.summary && (
-                          <span className="text-emerald-300 font-semibold bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
-                            {currentStep.diff.summary.split('\n')[0]}
-                          </span>
-                        )}
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3 p-2.5 px-4 bg-black/70 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl max-w-xl truncate">
+                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse flex-shrink-0" />
+                        <div className="font-mono text-xs truncate">
+                          <span className="text-gray-400 font-bold mr-2">LINE {currentStep.line}:</span>
+                          <span className="text-white font-semibold mr-3">{currentStep.code}</span>
+                          {currentStep.diff?.summary && (
+                            <span className="text-emerald-300 font-semibold bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">
+                              {currentStep.diff.summary.split('\n')[0]}
+                            </span>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Tree Traversal & Call Stack Overlay Pill */}
+                      {currentStep.metadata?.tree?.traversalSequence && currentStep.metadata.tree.traversalSequence.length > 0 && (
+                        <div className="flex items-center gap-2 p-2 px-3 bg-emerald-950/80 backdrop-blur-md rounded-xl border border-emerald-500/40 shadow-lg font-mono text-xs text-emerald-300">
+                          <span className="font-bold text-emerald-400 uppercase">{currentStep.metadata.tree.traversalType || 'TREE'} SEQUENCE:</span>
+                          <span className="bg-black/50 px-2 py-0.5 rounded font-bold text-white">
+                            [{currentStep.metadata.tree.traversalSequence.join(' ──► ')}]
+                          </span>
+                        </div>
+                      )}
+                      {currentStep.callStack && currentStep.callStack.length > 1 && (
+                        <div className="flex items-center gap-2 p-2 px-3 bg-indigo-950/80 backdrop-blur-md rounded-xl border border-indigo-500/40 shadow-lg font-mono text-xs text-indigo-300">
+                          <span className="font-bold text-indigo-400 uppercase">CALL STACK DEPTH {currentStep.callStack.length}:</span>
+                          <span className="bg-black/50 px-2 py-0.5 rounded text-indigo-200">
+                            {currentStep.callStack.map(f => f.funcName).join(' ──► ')}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Interactive Why Button */}

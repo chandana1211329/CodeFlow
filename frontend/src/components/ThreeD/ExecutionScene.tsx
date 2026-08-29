@@ -63,7 +63,7 @@ const isNodeObject = (obj: any): boolean => {
   const typeName = (obj._type || '').toLowerCase();
   
   // 1. Check if type name indicates a node or tree element
-  if (typeName.includes('node') || typeName.includes('tree') || typeName.includes('element') || typeName.includes('link')) {
+  if (typeName.includes('node') || typeName.includes('tree') || typeName.includes('element') || typeName.includes('link') || typeName.includes('bst')) {
     return true;
   }
   

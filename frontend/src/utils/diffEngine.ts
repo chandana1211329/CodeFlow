@@ -155,7 +155,19 @@ export function enrichStepClientSide(steps: ExecutionStep[], language?: string):
 
     let opType = step.operationType || 'EXECUTION';
     if (!step.operationType) {
-      if (codeTrim.includes('.append(') || codeTrim.includes('.push(') || codeTrim.includes('.add(')) {
+      if (codeTrim.includes('.left') || codeTrim.includes('.right') || /node|tree|bst/i.test(codeTrim)) {
+        if (codeTrim.includes('.left =') || codeTrim.includes('.left=')) {
+          opType = 'TREE LEFT BRANCH';
+        } else if (codeTrim.includes('.right =') || codeTrim.includes('.right=')) {
+          opType = 'TREE RIGHT BRANCH';
+        } else if (codeTrim.startsWith('if ') || codeTrim.startsWith('elif ')) {
+          opType = 'TREE COMPARISON';
+        } else if (codeTrim.includes('Node(') || codeTrim.includes('new Node')) {
+          opType = 'NODE CREATION';
+        } else {
+          opType = 'TREE OPERATION';
+        }
+      } else if (codeTrim.includes('.append(') || codeTrim.includes('.push(') || codeTrim.includes('.add(')) {
         opType = 'ARRAY INSERTION';
       } else if (/\w+\[.*\]\s*=/.test(codeTrim)) {
         opType = 'ARRAY UPDATE';
@@ -183,7 +195,23 @@ export function enrichStepClientSide(steps: ExecutionStep[], language?: string):
     let whyItHappened = `The ${runtimeName} evaluated this line according to ${langName} language semantics.`;
     let whyDetails = `Line ${step.line}: '${codeTrim}' was evaluated in ${langName}.`;
 
-    if (opType === 'ARRAY INSERTION') {
+    if (opType === 'TREE COMPARISON') {
+      whatHappened = `Tree Comparison: ${codeTrim}`;
+      whyItHappened = 'Comparing search/insertion value against current tree node data to determine left or right subtree branch.';
+      whyDetails = 'In Binary Search Trees, values strictly less than the node move left, while values greater move right.';
+    } else if (opType === 'TREE LEFT BRANCH') {
+      whatHappened = 'Attached node to LEFT child pointer.';
+      whyItHappened = 'Updating parent node\'s left reference pointer to connect child node in tree structure.';
+      whyDetails = 'Left child links represent smaller sub-values in Binary Search Trees.';
+    } else if (opType === 'TREE RIGHT BRANCH') {
+      whatHappened = 'Attached node to RIGHT child pointer.';
+      whyItHappened = 'Updating parent node\'s right reference pointer to connect child node in tree structure.';
+      whyDetails = 'Right child links represent larger sub-values in Binary Search Trees.';
+    } else if (opType === 'NODE CREATION') {
+      whatHappened = 'Instantiated new Tree Node object.';
+      whyItHappened = 'Allocates memory for a new tree node containing data, left reference, and right reference.';
+      whyDetails = 'Tree nodes encapsulate data values alongside left and right child pointers.';
+    } else if (opType === 'ARRAY INSERTION') {
       whatHappened = 'Added element to array/collection.';
       whyItHappened = 'Inserts new item at the end of sequence, expanding its element count.';
       whyDetails = `In ${langName}, collection insertion methods append elements to dynamic storage.`;

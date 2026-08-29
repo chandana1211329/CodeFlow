@@ -343,42 +343,135 @@ const LinkedListNodeMesh: React.FC<{
   );
 };
 
-// 2. Tree Node component
+// 2. Enhanced Tree Node component
 const TreeNodeMesh: React.FC<{
   position: [number, number, number];
   value: any;
   address: string;
   label?: string;
-}> = ({ position, value, address, label }) => {
+  nodeId?: string;
+  pointers?: string[];
+  isCurrent?: boolean;
+  isComparing?: boolean;
+  isVisited?: boolean;
+  isMatched?: boolean;
+  isNewNode?: boolean;
+  comparisonBadge?: string;
+}> = ({
+  position,
+  value,
+  address,
+  label,
+  pointers = [],
+  isCurrent,
+  isComparing,
+  isVisited,
+  isMatched,
+  isNewNode,
+  comparisonBadge
+}) => {
   const groupRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.1;
+      const hoverSpeed = isMatched || isComparing ? 4 : 2;
+      const hoverHeight = isMatched ? 0.15 : isComparing ? 0.12 : 0.08;
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * hoverSpeed + position[0]) * hoverHeight;
     }
   });
 
   const displayValue = value === null || value === undefined ? 'null' : typeof value === 'string' ? `"${value}"` : String(value);
 
+  // Color selection based on node execution state
+  let nodeColor = '#3b82f6';
+  let emissiveColor = '#1d4ed8';
+  let emissiveIntensity = 0.4;
+
+  if (isMatched) {
+    nodeColor = '#10b981';
+    emissiveColor = '#059669';
+    emissiveIntensity = 0.9;
+  } else if (isComparing) {
+    nodeColor = '#f59e0b';
+    emissiveColor = '#d97706';
+    emissiveIntensity = 0.8;
+  } else if (isCurrent) {
+    nodeColor = '#06b6d4';
+    emissiveColor = '#0891b2';
+    emissiveIntensity = 0.8;
+  } else if (isNewNode) {
+    nodeColor = '#8b5cf6';
+    emissiveColor = '#7c3aed';
+    emissiveIntensity = 0.8;
+  } else if (isVisited) {
+    nodeColor = '#6366f1';
+    emissiveColor = '#4f46e5';
+    emissiveIntensity = 0.5;
+  }
+
   return (
     <group position={position}>
+      {/* Pointer Badges Stack */}
+      {pointers.length > 0 && (
+        <group position={[0, 1.8, 0]}>
+          <RoundedBox args={[Math.max(1.4, pointers.join(', ').length * 0.22), 0.45, 0.2]} radius={0.1}>
+            <meshStandardMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.8} />
+          </RoundedBox>
+          <Text position={[0, 0, 0.12]} fontSize={0.24} color="white" anchorX="center" anchorY="middle" fontWeight="bold">
+            {`↑ ${pointers.join(', ')}`}
+          </Text>
+        </group>
+      )}
+
+      {/* Comparison Floating Badge */}
+      {comparisonBadge && (
+        <group position={[0, 2.4, 0]}>
+          <RoundedBox args={[Math.max(1.8, comparisonBadge.length * 0.2), 0.45, 0.2]} radius={0.1}>
+            <meshStandardMaterial color="#f59e0b" emissive="#b45309" emissiveIntensity={0.9} />
+          </RoundedBox>
+          <Text position={[0, 0, 0.12]} fontSize={0.22} color="white" anchorX="center" anchorY="middle" fontWeight="bold">
+            {comparisonBadge}
+          </Text>
+        </group>
+      )}
+
+      {/* Match / Found Badge */}
+      {isMatched && (
+        <group position={[0, 2.4, 0]}>
+          <RoundedBox args={[1.6, 0.45, 0.2]} radius={0.1}>
+            <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={0.9} />
+          </RoundedBox>
+          <Text position={[0, 0, 0.12]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">
+            FOUND!
+          </Text>
+        </group>
+      )}
+
       <group ref={groupRef}>
-        <Sphere args={[0.8, 32, 32]}>
-          <meshStandardMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.5} roughness={0.2} metalness={0.8} />
+        <Sphere args={[0.85, 32, 32]}>
+          <meshStandardMaterial color={nodeColor} emissive={emissiveColor} emissiveIntensity={emissiveIntensity} roughness={0.2} metalness={0.7} />
         </Sphere>
-        <Text position={[0, 0, 0.81]} fontSize={0.4} color="white" anchorX="center" anchorY="middle" maxWidth={1.2} fontWeight="bold">
+        
+        {/* Outer Glow Ring for Current / Comparing */}
+        {(isCurrent || isComparing || isMatched) && (
+          <Sphere args={[0.95, 24, 24]}>
+            <meshBasicMaterial color={nodeColor} transparent opacity={0.35} wireframe />
+          </Sphere>
+        )}
+
+        <Text position={[0, 0, 0.86]} fontSize={0.4} color="white" anchorX="center" anchorY="middle" maxWidth={1.2} fontWeight="bold">
           {displayValue}
         </Text>
         
         {/* Address Tag */}
-        <Text position={[0, 1.0, 0]} fontSize={0.22} color="#67e8f9" anchorX="center" anchorY="bottom" fontWeight="bold">
+        <Text position={[0, -1.05, 0]} fontSize={0.22} color="#67e8f9" anchorX="center" anchorY="top" fontWeight="bold">
           {address}
         </Text>
       </group>
 
-      {/* Variable Name */}
+      {/* Root / Variable Name Label */}
       {label && (
-        <Text position={[0, 1.6, 0]} fontSize={0.4} color="#60a5fa" anchorX="center" anchorY="bottom" fontWeight="bold">
+        <Text position={[0, 2.9, 0]} fontSize={0.4} color="#60a5fa" anchorX="center" anchorY="bottom" fontWeight="bold">
           {label}
         </Text>
       )}
@@ -410,14 +503,14 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
   }, [currentStep]);
 
   // Pre-traverse to assign memory addresses and lay out nodes
-  const { nodes, links, isLinkedList } = useMemo(() => {
+  const { nodes, links } = useMemo(() => {
     const positionedNodes: PositionedNode[] = [];
     const links: { 
       source: [number, number, number]; 
       target: [number, number, number]; 
       isLinkedList: boolean;
       isDoubly: boolean;
-      type: 'next' | 'prev';
+      type: 'next' | 'prev' | 'left' | 'right';
     }[] = [];
     const nodeAddresses = new Map<any, string>();
     
@@ -448,8 +541,14 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
         if (!n || typeof n !== 'object') return;
         const uniqueKey = n._id || `tree_node_${nodeIndex++}`;
         nodeAddresses.set(n, formatAddress(uniqueKey));
-        const children = getChildrenNodes(n);
-        children.forEach(assignTreeAddresses);
+        const left = getLeftNode(n);
+        const right = getRightNode(n);
+        if (left) assignTreeAddresses(left);
+        if (right) assignTreeAddresses(right);
+        if (!left && !right) {
+          const children = getChildrenNodes(n);
+          children.forEach(assignTreeAddresses);
+        }
       };
       assignTreeAddresses(root);
     }
@@ -510,7 +609,6 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
           const child = traverse(nextNode, depth, offset + 1);
           if (child) {
             currentPosNode.children.push({ childId: child.id, type: 'next' });
-            
             links.push({ 
               source: position, 
               target: child.position, 
@@ -531,29 +629,60 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
           }
         }
       } else {
-        const children = getChildrenNodes(node);
-        if (children.length > 0) {
-          const spread = 3.5 / Math.pow(1.2, depth);
-          const count = children.length;
-          
-          children.forEach((childNode, idx) => {
-            let childOffset = offset;
-            if (count > 1) {
-              childOffset = offset - (spread / 2) + (idx * (spread / (count - 1)));
-            }
-            
-            const child = traverse(childNode, depth + 1, childOffset);
-            if (child) {
-              currentPosNode.children.push({ childId: child.id, type: 'child' });
-              links.push({ 
-                source: position, 
-                target: child.position, 
-                isLinkedList: false, 
-                isDoubly: false, 
-                type: 'next' 
-              });
-            }
-          });
+        const left = getLeftNode(node);
+        const right = getRightNode(node);
+        const spread = Math.max(1.6, 3.8 / Math.pow(1.3, depth));
+
+        if (left) {
+          const child = traverse(left, depth + 1, offset - spread);
+          if (child) {
+            currentPosNode.children.push({ childId: child.id, type: 'left' });
+            links.push({
+              source: position,
+              target: child.position,
+              isLinkedList: false,
+              isDoubly: false,
+              type: 'left'
+            });
+          }
+        }
+
+        if (right) {
+          const child = traverse(right, depth + 1, offset + spread);
+          if (child) {
+            currentPosNode.children.push({ childId: child.id, type: 'right' });
+            links.push({
+              source: position,
+              target: child.position,
+              isLinkedList: false,
+              isDoubly: false,
+              type: 'right'
+            });
+          }
+        }
+
+        if (!left && !right) {
+          const children = getChildrenNodes(node);
+          if (children.length > 0) {
+            const count = children.length;
+            children.forEach((childNode, idx) => {
+              let childOffset = offset;
+              if (count > 1) {
+                childOffset = offset - (spread / 2) + (idx * (spread / (count - 1)));
+              }
+              const child = traverse(childNode, depth + 1, childOffset);
+              if (child) {
+                currentPosNode.children.push({ childId: child.id, type: 'child' });
+                links.push({ 
+                  source: position, 
+                  target: child.position, 
+                  isLinkedList: false, 
+                  isDoubly: false, 
+                  type: idx === 0 ? 'left' : 'right' 
+                });
+              }
+            });
+          }
         }
       }
       
@@ -562,7 +691,7 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
     
     traverse(root, 0, 0);
     
-    return { nodes: positionedNodes, links, isLinkedList: detectedLinkedList };
+    return { nodes: positionedNodes, links };
   }, [root]);
 
   return (
@@ -571,6 +700,7 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
         let startPoint: [number, number, number] = link.source;
         let endPoint: [number, number, number] = link.target;
         let lineColor = '#9ca3af';
+        let labelText = '';
         
         if (link.isLinkedList) {
           if (link.isDoubly) {
@@ -591,8 +721,17 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
         } else {
           startPoint = [link.source[0], link.source[1] - 0.8, link.source[2]];
           endPoint = [link.target[0], link.target[1] + 0.8, link.target[2]];
-          lineColor = '#60a5fa';
+          if (link.type === 'left') {
+            lineColor = '#3b82f6';
+            labelText = 'L';
+          } else {
+            lineColor = '#ec4899';
+            labelText = 'R';
+          }
         }
+
+        const midX = (startPoint[0] + endPoint[0]) / 2;
+        const midY = (startPoint[1] + endPoint[1]) / 2;
 
         return (
           <group key={`link-group-${i}`}>
@@ -601,6 +740,11 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
               color={lineColor} 
               lineWidth={3} 
             />
+            {labelText && (
+              <Text position={[midX, midY, 0.1]} fontSize={0.25} color={lineColor} anchorX="center" anchorY="middle" fontWeight="bold">
+                {labelText}
+              </Text>
+            )}
             {link.isLinkedList && (
               <mesh position={[startPoint[0], startPoint[1], startPoint[2] + 0.02]}>
                 <sphereGeometry args={[0.08, 16, 16]} />
@@ -613,8 +757,15 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
       
       {nodes.map((node, i) => {
         const ptrs = pointerMap.get(node.rawId) || pointerMap.get(node.address) || [];
-        const isMatched = currentStep?.operationType === 'SEARCH MATCH' && (ptrs.includes('current') || i === nodes.length - 1);
-        const isNewNode = currentStep?.operationType === 'NODE CREATION' && (ptrs.includes('new_node') || i === nodes.length - 1);
+        const isCurrent = ptrs.includes('curr') || ptrs.includes('node') || ptrs.includes('current') || ptrs.includes('p');
+        const isMatched = (currentStep?.operationType === 'SEARCH MATCH' || currentStep?.metadata?.tree?.decision === 'FOUND') && (isCurrent || i === nodes.length - 1);
+        const isNewNode = (currentStep?.operationType === 'NODE CREATION' || currentStep?.metadata?.tree?.operation === 'CREATE') && (ptrs.includes('new_node') || i === nodes.length - 1);
+        const isComparing = currentStep?.metadata?.tree?.operation === 'COMPARE' && isCurrent;
+
+        let compBadge: string | undefined = undefined;
+        if (isComparing && currentStep?.metadata?.tree?.comparisonExpr) {
+          compBadge = currentStep.metadata.tree.comparisonExpr;
+        }
 
         if (node.isLinkedList) {
           return (
@@ -640,6 +791,14 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
               value={node.val}
               address={node.address}
               label={i === 0 ? name : undefined}
+              nodeId={node.rawId}
+              pointers={ptrs}
+              isCurrent={isCurrent}
+              isComparing={isComparing}
+              isVisited={false}
+              isMatched={isMatched}
+              isNewNode={isNewNode}
+              comparisonBadge={compBadge}
             />
           );
         }
