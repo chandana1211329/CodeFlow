@@ -61,10 +61,18 @@ export interface StepMetadata {
   loop?: LoopMetadata;
 }
 
+export interface CallStackFrame {
+  funcName: string;
+  line: number;
+  variables: Record<string, any>;
+}
+
 export interface ExecutionStep {
   line: number;
   code: string;
   variables: Record<string, any>;
+  scopeVars?: Record<string, any>;
+  callStack?: CallStackFrame[];
   description?: string;
   output?: string;
   metadata?: StepMetadata;

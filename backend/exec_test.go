@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -255,3 +256,144 @@ print(x)`
 	}
 	t.Logf("Python empty inputs steps count: %d", len(steps))
 }
+
+func TestExecutePythonLinkedListMainBlock(t *testing.T) {
+	code := `class Node:
+    def __init__(self, data):
+        self.data = data
+        self.next = None
+
+class LinkedList:
+    def __init__(self):
+        self.head = None
+
+    def append(self, data):
+        new_node = Node(data)
+        if self.head is None:
+            self.head = new_node
+            return
+        current = self.head
+        while current.next:
+            current = current.next
+        current.next = new_node
+
+if __name__ == "__main__":
+    llist = LinkedList()
+    llist.append(10)
+    llist.append(20)
+`
+	steps, err := executePythonWithTracing(code, nil)
+	if err != nil {
+		t.Fatalf("Python linked list with main block error: %v", err)
+	}
+	t.Logf("Python linked list steps count: %d", len(steps))
+	if len(steps) <= 9 {
+		t.Errorf("Expected more than 9 steps for linked list main block execution, got %d", len(steps))
+	}
+}
+
+func TestLanguageAwareArrayLength(t *testing.T) {
+	// Test Java array.length explanation
+	javaCode := `public class Main {
+    public static void main(String[] args) {
+        int[] arr = new int[]{10, 20, 30, 40};
+        int n = arr.length;
+    }
+}`
+	javaSteps, err := executeJava(javaCode, nil)
+	if err != nil {
+		t.Fatalf("Java execution failed: %v", err)
+	}
+	javaSteps = ExplanationPipeline(javaSteps, "java")
+	
+	foundJavaLengthExp := false
+	for _, st := range javaSteps {
+		if strings.Contains(st.Code, "arr.length") && st.Explanation != nil {
+			t.Logf("Java length explanation: %s", st.Explanation.WhatHappened)
+			if strings.Contains(st.Explanation.WhatHappened, "arr.length evaluates to 4") && strings.Contains(st.Explanation.WhatHappened, "n becomes 4") {
+				foundJavaLengthExp = true
+			}
+		}
+	}
+	if !foundJavaLengthExp {
+		t.Errorf("Expected Java array.length explanation format not found in steps")
+	}
+
+	// Test Python len(arr) explanation
+	pyCode := `arr = [10, 20, 30, 40]
+n = len(arr)`
+	pySteps, err := executePythonWithTracing(pyCode, nil)
+	if err != nil {
+		t.Fatalf("Python execution failed: %v", err)
+	}
+	pySteps = ExplanationPipeline(pySteps, "python")
+
+	foundPyLengthExp := false
+	for _, st := range pySteps {
+		if strings.Contains(st.Code, "len(arr)") && st.Explanation != nil {
+			t.Logf("Python length explanation: %s", st.Explanation.WhatHappened)
+			if strings.Contains(st.Explanation.WhatHappened, "len(arr) returns 4") && strings.Contains(st.Explanation.WhatHappened, "n becomes 4") {
+				foundPyLengthExp = true
+			}
+		}
+	}
+	if !foundPyLengthExp {
+		t.Errorf("Expected Python len(arr) explanation format not found in steps")
+	}
+}
+
+func TestLanguageAwareInputOutput(t *testing.T) {
+	// Test Java Scanner input & System.out.println
+	javaCode := `import java.util.Scanner;
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        int val = sc.nextInt();
+        System.out.println("Result: " + val);
+    }
+}`
+	javaSteps, err := executeJava(javaCode, []string{"42"})
+	if err != nil {
+		t.Fatalf("Java Input/Output execution failed: %v", err)
+	}
+	javaSteps = ExplanationPipeline(javaSteps, "java")
+	for i, st := range javaSteps {
+		t.Logf("Java Step %d (%s) - OpType: %s, WhatHappened: %s", i, st.Code, st.OperationType, st.Explanation.WhatHappened)
+	}
+
+	// Test Python input & print
+	pyCode := `val = input("Enter val: ")
+print(f"Result: {val}")`
+	pySteps, err := executePythonWithTracing(pyCode, []string{"100"})
+	if err != nil {
+		t.Fatalf("Python Input/Output execution failed: %v", err)
+	}
+	pySteps = ExplanationPipeline(pySteps, "python")
+	for i, st := range pySteps {
+		t.Logf("Python Step %d (%s) - OpType: %s, WhatHappened: %s", i, st.Code, st.OperationType, st.Explanation.WhatHappened)
+	}
+}
+
+func TestLanguageAwareConditionsAndLoops(t *testing.T) {
+	javaCode := `public class Main {
+    public static void main(String[] args) {
+        int x = 15;
+        if (x > 10) {
+            int y = x * 2;
+        }
+        for (int i = 0; i < 3; i++) {
+            int val = i;
+        }
+    }
+}`
+	javaSteps, err := executeJava(javaCode, nil)
+	if err != nil {
+		t.Fatalf("Java Conditions/Loops execution failed: %v", err)
+	}
+	javaSteps = ExplanationPipeline(javaSteps, "java")
+	for i, st := range javaSteps {
+		t.Logf("Java Step %d (%s) - OpType: %s, Description: %s", i, st.Code, st.OperationType, st.Description)
+	}
+}
+
+

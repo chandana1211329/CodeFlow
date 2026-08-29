@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Text, Sphere, Line, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
+import { ExecutionStep } from '../../types';
 
 interface NodeData {
   val?: any;
@@ -11,11 +12,13 @@ interface NodeData {
   left?: NodeData;
   right?: NodeData;
   _type?: string;
+  _id?: string;
   [key: string]: any;
 }
 
 interface PositionedNode {
   id: string;
+  rawId: string;
   val: any;
   position: [number, number, number];
   address: string;
@@ -30,10 +33,14 @@ interface ThreeDNodeStructureProps {
   name: string;
   root: NodeData;
   yOffset: number;
+  currentStep?: ExecutionStep | null;
 }
 
 // Deterministic address generator
 const formatAddress = (nodeId: string | number): string => {
+  if (typeof nodeId === 'string' && nodeId.includes('#')) {
+    return nodeId;
+  }
   if (typeof nodeId === 'number') {
     return '0x' + nodeId.toString(16).toUpperCase().slice(-4);
   }
@@ -97,7 +104,7 @@ const getRightNode = (node: any): any | null => {
   return null;
 };
 
-// Helper to extract actual elements from a list/array/collection wrapper object (like Java's ArrayList)
+// Helper to extract actual elements from a list/array/collection wrapper object
 const extractElementsFromList = (listObj: any): any[] => {
   if (!listObj || typeof listObj !== 'object') return [];
   if (Array.isArray(listObj)) {
@@ -117,11 +124,10 @@ const extractElementsFromList = (listObj: any): any[] => {
   return [];
 };
 
-// Generic helper to get all children of a node (handles Binary Trees and N-ary Trees)
+// Generic helper to get all children of a node
 const getChildrenNodes = (node: any): any[] => {
   if (!node || typeof node !== 'object') return [];
   
-  // 1. Check for fields named 'children', 'childList', 'child_list', or 'childs'
   const childrenKeys = ['children', 'childList', 'child_list', 'childs'];
   for (const key of childrenKeys) {
     if (key in node && node[key] !== null) {
@@ -130,14 +136,12 @@ const getChildrenNodes = (node: any): any[] => {
       if (elements.length > 0) {
         return elements.filter(v => typeof v === 'object');
       }
-      // If it's a single object (not a list wrapper) and is a valid node of same type
       if (typeof val === 'object' && val._type && val._type === node._type) {
         return [val];
       }
     }
   }
   
-  // 2. Check if the node itself has any array/list field that contains objects of the same _type
   if (node._type) {
     for (const [k, v] of Object.entries(node)) {
       const elements = extractElementsFromList(v);
@@ -150,7 +154,6 @@ const getChildrenNodes = (node: any): any[] => {
     }
   }
   
-  // 3. Fallback to left and right nodes if present
   const left = getLeftNode(node);
   const right = getRightNode(node);
   const fallback: any[] = [];
@@ -159,37 +162,92 @@ const getChildrenNodes = (node: any): any[] => {
   return fallback;
 };
 
-// 1. Linked List Node component (split into Prev + Data + Next Pointer)
+// 1. Linked List Node component with pointer badges and search match highlight
 const LinkedListNodeMesh: React.FC<{
   position: [number, number, number];
   value: any;
   address: string;
   nextAddress: string;
-  prevAddress: string | null; // Null if singly linked list
+  prevAddress: string | null;
   label?: string;
-}> = ({ position, value, address, nextAddress, prevAddress, label }) => {
+  nodeId?: string;
+  pointers?: string[];
+  isMatched?: boolean;
+  isNewNode?: boolean;
+}> = ({
+  position,
+  value,
+  address,
+  nextAddress,
+  prevAddress,
+  label,
+  nodeId,
+  pointers = [],
+  isMatched,
+  isNewNode
+}) => {
   const groupRef = useRef<THREE.Group>(null);
   const isDoubly = prevAddress !== null;
 
-  // Floating animation
   useFrame((state) => {
     if (groupRef.current) {
-      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * 2 + position[0]) * 0.08;
+      const hoverHeight = isMatched || pointers.length > 0 ? 0.14 : 0.08;
+      const speed = isMatched ? 4 : 2;
+      groupRef.current.position.y = Math.sin(state.clock.elapsedTime * speed + position[0]) * hoverHeight;
     }
   });
 
   const displayValue = value === null || value === undefined ? 'null' : typeof value === 'string' ? `"${value}"` : String(value);
   const width = isDoubly ? 2.8 : 2.2;
+  const nodeBgColor = isMatched ? '#065f46' : (isNewNode ? '#1e3a8a' : (pointers.length > 0 ? '#312e81' : '#1e1b4b'));
+  const emissiveColor = isMatched ? '#10b981' : (isNewNode ? '#3b82f6' : (pointers.length > 0 ? '#6366f1' : '#000000'));
 
   return (
     <group position={position}>
+      {/* Pointer Badges Stack above Node */}
+      {pointers.length > 0 && (
+        <group position={[0, 2.2, 0]}>
+          <RoundedBox args={[Math.max(1.6, pointers.join(', ').length * 0.22), 0.5, 0.25]} radius={0.1}>
+            <meshStandardMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.8} />
+          </RoundedBox>
+          <Text position={[0, 0, 0.15]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">
+            {`↑ ${pointers.join(', ')}`}
+          </Text>
+        </group>
+      )}
+
+      {/* Match Badge */}
+      {isMatched && (
+        <group position={[0, 2.8, 0]}>
+          <RoundedBox args={[1.6, 0.45, 0.2]} radius={0.1}>
+            <meshStandardMaterial color="#10b981" emissive="#059669" emissiveIntensity={0.9} />
+          </RoundedBox>
+          <Text position={[0, 0, 0.12]} fontSize={0.25} color="white" anchorX="center" anchorY="middle" fontWeight="bold">
+            MATCH!
+          </Text>
+        </group>
+      )}
+
       <group ref={groupRef}>
         {/* Main Node Box */}
         <RoundedBox args={[width, 1.2, 0.6]} radius={0.1} smoothness={4}>
-          <meshStandardMaterial color="#1e1b4b" roughness={0.3} metalness={0.6} />
+          <meshStandardMaterial 
+            color={nodeBgColor} 
+            emissive={emissiveColor}
+            emissiveIntensity={isMatched ? 0.8 : (isNewNode ? 0.6 : (pointers.length > 0 ? 0.4 : 0))}
+            roughness={0.3} 
+            metalness={0.6} 
+          />
         </RoundedBox>
 
-        {/* --- PREV Compartment (only if doubly) --- */}
+        {/* Node ID Label (e.g. Node#1) */}
+        {nodeId && (
+          <Text position={[isDoubly ? -0.1 : -0.4, -0.9, 0]} fontSize={0.24} color="#a5b4fc" anchorX="center" anchorY="top" fontWeight="bold">
+            {nodeId}
+          </Text>
+        )}
+
+        {/* --- PREV Compartment --- */}
         {isDoubly && (
           <>
             <mesh position={[-1.0, 0, 0.01]}>
@@ -275,7 +333,7 @@ const LinkedListNodeMesh: React.FC<{
         </Text>
       </group>
 
-      {/* Variable Name label */}
+      {/* Main Variable Label */}
       {label && (
         <Text position={[isDoubly ? -0.1 : -0.4, 1.6, 0]} fontSize={0.4} color="#60a5fa" anchorX="center" anchorY="bottom" fontWeight="bold">
           {label}
@@ -285,7 +343,7 @@ const LinkedListNodeMesh: React.FC<{
   );
 };
 
-// 2. Tree Node component (Sphere)
+// 2. Tree Node component
 const TreeNodeMesh: React.FC<{
   position: [number, number, number];
   value: any;
@@ -328,8 +386,30 @@ const TreeNodeMesh: React.FC<{
   );
 };
 
-export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, root, yOffset }) => {
-  // Pre-traverse to assign memory addresses to nodes
+export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, root, yOffset, currentStep }) => {
+  // Compute pointer references targeting each node object
+  const pointerMap = useMemo(() => {
+    const map = new Map<string, string[]>();
+    if (!currentStep) return map;
+
+    const allVars = { ...(currentStep.variables || {}), ...(currentStep.scopeVars || {}) };
+    
+    for (const [varName, val] of Object.entries(allVars)) {
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        const objectId = val._id || formatAddress(val._id || val);
+        if (objectId && objectId !== '0x0000') {
+          const list = map.get(objectId) || [];
+          if (!list.includes(varName)) {
+            list.push(varName);
+            map.set(objectId, list);
+          }
+        }
+      }
+    }
+    return map;
+  }, [currentStep]);
+
+  // Pre-traverse to assign memory addresses and lay out nodes
   const { nodes, links, isLinkedList } = useMemo(() => {
     const positionedNodes: PositionedNode[] = [];
     const links: { 
@@ -341,7 +421,6 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
     }[] = [];
     const nodeAddresses = new Map<any, string>();
     
-    // Check if linked list or tree using generic getters
     const hasNext = getNextNode(root) !== null;
     const hasPrev = getPrevNode(root) !== null;
     const hasLeftRight = getLeftNode(root) !== null || getRightNode(root) !== null;
@@ -352,14 +431,14 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
     const detectedLinkedList = hasNext && !hasLeftRight && !hasChildrenList && !isTreeType;
     const detectedDoubly = detectedLinkedList && hasPrev;
 
-    // 1. Assign deterministic addresses
+    // Assign addresses
     if (detectedLinkedList) {
       let temp: any = root;
       let idx = 0;
       while (temp && typeof temp === 'object') {
         const uniqueKey = temp._id || `node_${idx}`;
         nodeAddresses.set(temp, formatAddress(uniqueKey));
-        if (idx > 50) break; // Infinite loop guard
+        if (idx > 50) break;
         temp = getNextNode(temp);
         idx++;
       }
@@ -375,21 +454,20 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
       assignTreeAddresses(root);
     }
 
-    // 2. Lay out nodes
+    // Lay out nodes
     let nextId = 0;
     
     const traverse = (node: NodeData | string, depth: number, offset: number): PositionedNode | null => {
-      if (!node) return null;
-      if (typeof node === 'string') return null;
-      if (typeof node !== 'object') return null;
+      if (!node || typeof node === 'string' || typeof node !== 'object') return null;
 
       const val = node.val !== undefined ? node.val :
                   node.value !== undefined ? node.value :
                   node.item !== undefined ? node.item :
                   node.data !== undefined ? node.data : '?';
                   
-      const id = node._id ? `node_${node._id}` : `node_${nextId++}`;
-      const address = nodeAddresses.get(node) || '0x0000';
+      const rawId = node._id ? String(node._id) : `Node#${nextId + 1}`;
+      const id = `node_${rawId}`;
+      const address = nodeAddresses.get(node) || formatAddress(rawId);
       
       let nextAddress = 'NULL';
       const nextNode = getNextNode(node);
@@ -406,7 +484,6 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
         }
       }
 
-      // Lay out Linked List horizontally, Trees vertically
       const spacing = detectedDoubly ? 4.2 : (detectedLinkedList ? 3.5 : 2.5);
       const x = offset * spacing;
       const y = -depth * 2.5;
@@ -415,6 +492,7 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
       
       const currentPosNode: PositionedNode = { 
         id, 
+        rawId,
         val, 
         position, 
         address, 
@@ -433,7 +511,6 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
           if (child) {
             currentPosNode.children.push({ childId: child.id, type: 'next' });
             
-            // Next Pointer Link (going forward)
             links.push({ 
               source: position, 
               target: child.position, 
@@ -442,7 +519,6 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
               type: 'next'
             });
 
-            // Prev Pointer Link (going backward)
             if (detectedDoubly) {
               links.push({
                 source: child.position,
@@ -455,10 +531,9 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
           }
         }
       } else {
-        // Tree Traversal
         const children = getChildrenNodes(node);
         if (children.length > 0) {
-          const spread = 3.5 / Math.pow(1.2, depth); // spread factor based on depth level
+          const spread = 3.5 / Math.pow(1.2, depth);
           const count = children.length;
           
           children.forEach((childNode, idx) => {
@@ -495,30 +570,28 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
       {links.map((link, i) => {
         let startPoint: [number, number, number] = link.source;
         let endPoint: [number, number, number] = link.target;
-        let lineColor = '#9ca3af'; // default grey
+        let lineColor = '#9ca3af';
         
         if (link.isLinkedList) {
           if (link.isDoubly) {
             if (link.type === 'next') {
               startPoint = [link.source[0] + 1.0, link.source[1], link.source[2] + 0.15];
               endPoint = [link.target[0] - 0.1, link.target[1], link.target[2] + 0.15];
-              lineColor = '#10b981'; // Emerald Green
+              lineColor = '#10b981';
             } else {
               startPoint = [link.source[0] - 1.0, link.source[1], link.source[2] - 0.15];
               endPoint = [link.target[0] - 0.1, link.target[1], link.target[2] - 0.15];
-              lineColor = '#a78bfa'; // Purple
+              lineColor = '#a78bfa';
             }
           } else {
-            // Singly LinkedList
             startPoint = [link.source[0] + 0.7, link.source[1], link.source[2]];
             endPoint = [link.target[0] - 0.4, link.target[1], link.target[2]];
             lineColor = '#10b981';
           }
         } else {
-          // Tree connection: line between spheres boundaries (radius is 0.8)
           startPoint = [link.source[0], link.source[1] - 0.8, link.source[2]];
           endPoint = [link.target[0], link.target[1] + 0.8, link.target[2]];
-          lineColor = '#60a5fa'; // Light Blue for tree pointers
+          lineColor = '#60a5fa';
         }
 
         return (
@@ -528,7 +601,6 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
               color={lineColor} 
               lineWidth={3} 
             />
-            {/* Visual connector anchor bulb inside the pointer compartments (only for LL) */}
             {link.isLinkedList && (
               <mesh position={[startPoint[0], startPoint[1], startPoint[2] + 0.02]}>
                 <sphereGeometry args={[0.08, 16, 16]} />
@@ -540,6 +612,10 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
       })}
       
       {nodes.map((node, i) => {
+        const ptrs = pointerMap.get(node.rawId) || pointerMap.get(node.address) || [];
+        const isMatched = currentStep?.operationType === 'SEARCH MATCH' && (ptrs.includes('current') || i === nodes.length - 1);
+        const isNewNode = currentStep?.operationType === 'NODE CREATION' && (ptrs.includes('new_node') || i === nodes.length - 1);
+
         if (node.isLinkedList) {
           return (
             <LinkedListNodeMesh
@@ -550,6 +626,10 @@ export const ThreeDNodeStructure: React.FC<ThreeDNodeStructureProps> = ({ name, 
               nextAddress={node.nextAddress}
               prevAddress={node.prevAddress}
               label={i === 0 ? name : undefined}
+              nodeId={node.rawId}
+              pointers={ptrs}
+              isMatched={isMatched}
+              isNewNode={isNewNode}
             />
           );
         } else {

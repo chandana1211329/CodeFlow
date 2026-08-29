@@ -683,6 +683,7 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlighte
                         name={ns.name}
                         root={ns.root}
                         yOffset={yOffset}
+                        currentStep={currentStep}
                       />
                     );
                   })}
@@ -755,6 +756,72 @@ const ExecutionScene: React.FC<ExecutionSceneProps> = ({ currentStep, highlighte
         </Suspense>
       </Canvas>
       
+      {/* Call Stack Overlay Panel (Top-Left) */}
+      {currentStep?.callStack && currentStep.callStack.length > 0 && (
+        <div className="absolute top-4 left-4 z-40 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl p-3 shadow-2xl max-w-xs text-xs font-mono">
+          <div className="flex items-center gap-2 mb-2 text-blue-400 font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-1">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />
+            Call Stack
+          </div>
+          <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
+            {currentStep.callStack.slice().reverse().map((frame, idx) => {
+              const isTop = idx === 0;
+              return (
+                <div 
+                  key={`${frame.funcName}-${idx}`} 
+                  className={`p-1.5 rounded border transition-all ${
+                    isTop 
+                      ? 'bg-blue-500/20 border-blue-500/50 text-blue-200 font-bold shadow-lg shadow-blue-500/10' 
+                      : 'bg-white/5 border-white/5 text-gray-400'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span>{frame.funcName}()</span>
+                    <span className="text-[10px] text-gray-400">line {frame.line}</span>
+                  </div>
+                  {Object.keys(frame.variables || {}).length > 0 && (
+                    <div className="text-[10px] text-gray-300 mt-1 opacity-90 truncate">
+                      {Object.entries(frame.variables).map(([k, v]) => {
+                        const valStr = (v && typeof v === 'object' && v._id) ? v._id : String(v);
+                        return `${k}: ${valStr}`;
+                      }).join(', ')}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Current Scope Overlay Panel (Top-Right) */}
+      {currentStep?.scopeVars && Object.keys(currentStep.scopeVars).length > 0 && (
+        <div className="absolute top-4 right-4 z-40 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl p-3 shadow-2xl max-w-xs text-xs font-mono">
+          <div className="flex items-center justify-between gap-2 mb-2 text-emerald-400 font-bold text-xs uppercase tracking-wider border-b border-white/10 pb-1">
+            <span>Current Frame Scope</span>
+            <span className="text-[10px] text-emerald-300 font-semibold bg-emerald-500/20 px-1.5 py-0.5 rounded border border-emerald-500/30">
+              {currentStep.callStack && currentStep.callStack.length > 0 
+                ? currentStep.callStack[currentStep.callStack.length - 1].funcName 
+                : 'scope'}()
+            </span>
+          </div>
+          <div className="space-y-1 max-h-40 overflow-y-auto no-scrollbar">
+            {Object.entries(currentStep.scopeVars).map(([varName, val]) => {
+              let displayVal = String(val);
+              if (val && typeof val === 'object') {
+                displayVal = val._id ? `${val._id} (${val._type || 'Object'})` : JSON.stringify(val);
+              }
+              return (
+                <div key={varName} className="flex justify-between items-center gap-3 text-gray-200 bg-white/5 px-2 py-1 rounded">
+                  <span className="font-bold text-blue-300">{varName}</span>
+                  <span className="text-emerald-300 truncate max-w-[120px]">{displayVal}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* HUD Info */}
       <div className="absolute bottom-4 right-4 text-xs text-gray-500 font-mono bg-gray-900/80 px-2 py-1 rounded">
         {stacks.length} stacks, {queues.length} queues, {arrays.length} arrays, {nodeStructures.length} node structures, {simpleVars.length} variables

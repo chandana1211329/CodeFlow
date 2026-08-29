@@ -11,9 +11,12 @@ export function formatVal(v: any): string {
   return String(v);
 }
 
-export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
+export function enrichStepClientSide(steps: ExecutionStep[], language?: string): ExecutionStep[] {
+  const lang = (language || 'python').toLowerCase();
+  const runtimeName = lang === 'java' ? 'JVM' : lang === 'c' ? 'C Runtime' : lang === 'javascript' ? 'V8 Engine' : 'Python Interpreter';
+  const langName = lang === 'java' ? 'Java' : lang === 'c' ? 'C' : lang === 'javascript' ? 'JavaScript' : 'Python';
+
   return steps.map((step, idx) => {
-    // If backend already provided rich fields, use them
     if (step.diff && step.operationType && step.explanation && step.whyDetails) {
       return step;
     }
@@ -30,12 +33,12 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
           summary: 'Program initialized'
         },
         explanation: step.explanation || {
-          whatHappened: 'Program execution started.',
-          whyItHappened: 'Setting up execution environment and initial memory state.',
+          whatHappened: `Program execution started in ${langName}.`,
+          whyItHappened: `Setting up execution environment and global state in ${runtimeName}.`,
           whatChangedText: 'Initial state ready.',
           valuesInvolved: step.variables || {}
         },
-        whyDetails: step.whyDetails || 'The interpreter begins execution from line 1, initializing global variables and imports.'
+        whyDetails: step.whyDetails || `The ${runtimeName} begins execution from line 1, preparing variable tables and imports.`
       };
     }
 
@@ -52,13 +55,16 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
       const prevV = prevVars[k];
       if (prevV === undefined) {
         changedVars.push(k);
+        const desc = lang === 'java'
+          ? `Variable '${k}' declared and initialized to ${formatVal(currV)}`
+          : `New variable created: ${k} = ${formatVal(currV)}`;
         changeDetails.push({
           varName: k,
           type: 'created',
           newValue: currV,
-          description: `New variable created: ${k} = ${formatVal(currV)}`
+          description: desc
         });
-        changeSummaries.push(`New variable created\n\n${k}\n${formatVal(currV)}`);
+        changeSummaries.push(`Variable created: ${k} = ${formatVal(currV)}`);
       } else {
         const currJSON = JSON.stringify(currV);
         const prevJSON = JSON.stringify(prevV);
@@ -75,7 +81,7 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
                 newValue: addedVal,
                 description: `${k}: + ${formatVal(addedVal)} (index ${addedIdx})`
               });
-              changeSummaries.push(`Array element added\n\n${k}[${addedIdx}]\n+ ${formatVal(addedVal)}`);
+              changeSummaries.push(`Array element added: ${k}[${addedIdx}] = ${formatVal(addedVal)}`);
             } else if (currV.length === prevV.length) {
               for (let i = 0; i < currV.length; i++) {
                 if (JSON.stringify(currV[i]) !== JSON.stringify(prevV[i])) {
@@ -87,7 +93,7 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
                     newValue: currV[i],
                     description: `${k}[${i}]: ${formatVal(prevV[i])} → ${formatVal(currV[i])}`
                   });
-                  changeSummaries.push(`Array element updated\n\n${k}[${i}]\n\n${formatVal(prevV[i])} → ${formatVal(currV[i])}`);
+                  changeSummaries.push(`Array element updated: ${k}[${i}] = ${formatVal(prevV[i])} → ${formatVal(currV[i])}`);
                 }
               }
             } else {
@@ -96,7 +102,7 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
                 type: 'element_removed',
                 description: `${k}: element removed`
               });
-              changeSummaries.push(`Array element removed\n\n${k}`);
+              changeSummaries.push(`Array element removed: ${k}`);
             }
           } else {
             changeDetails.push({
@@ -106,19 +112,24 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
               newValue: currV,
               description: `${k}: ${formatVal(prevV)} → ${formatVal(currV)}`
             });
-
-            if (['i', 'j', 'k', 'idx', 'index', 'count'].includes(k)) {
-              changeSummaries.push(`Loop variable updated\n\n${k}\n${formatVal(prevV)} → ${formatVal(currV)}`);
-            } else {
-              changeSummaries.push(`Variable updated\n\n${k}\n${formatVal(prevV)} → ${formatVal(currV)}`);
-            }
+            changeSummaries.push(`Variable updated: ${k} = ${formatVal(prevV)} → ${formatVal(currV)}`);
           }
         }
       }
     }
 
-    // Detect relationships e.g. count = len(arr)
-    if (codeTrim.includes('len(')) {
+    if (lang === 'java' && codeTrim.includes('.length')) {
+      const match = codeTrim.match(/(\w+)\s*=\s*(\w+)\.length/);
+      if (match) {
+        const [, target, src] = match;
+        const val = currVars[target];
+        relLinks.push({
+          from: src,
+          label: `${src}.length = ${val}`,
+          to: target
+        });
+      }
+    } else if (codeTrim.includes('len(')) {
       const match = codeTrim.match(/(\w+)\s*=\s*len\(\s*(\w+)\s*\)/);
       if (match) {
         const [, target, src] = match;
@@ -142,21 +153,18 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
       }
     }
 
-    // Determine operation type
     let opType = step.operationType || 'EXECUTION';
     if (!step.operationType) {
-      if (codeTrim.includes('.append(') || codeTrim.includes('.push(') || codeTrim.includes('.add(') || codeTrim.includes('.enqueue(')) {
+      if (codeTrim.includes('.append(') || codeTrim.includes('.push(') || codeTrim.includes('.add(')) {
         opType = 'ARRAY INSERTION';
       } else if (/\w+\[.*\]\s*=/.test(codeTrim)) {
         opType = 'ARRAY UPDATE';
-      } else if (codeTrim.startsWith('for ') || codeTrim.startsWith('while ')) {
+      } else if (codeTrim.startsWith('for ') || codeTrim.startsWith('while ') || codeTrim.includes('for(')) {
         opType = 'LOOP';
       } else if (codeTrim.startsWith('if ') || codeTrim.startsWith('elif ') || codeTrim.startsWith('else')) {
         opType = 'CONDITION';
-      } else if (codeTrim.includes('print(') || codeTrim.includes('System.out')) {
+      } else if (codeTrim.includes('print') || codeTrim.includes('System.out')) {
         opType = 'OUTPUT';
-      } else if (codeTrim.includes('len(')) {
-        opType = 'CALCULATION / ASSIGNMENT';
       } else if (changedVars.length > 0) {
         const firstVar = changedVars[0];
         if (prevVars[firstVar] === undefined) {
@@ -168,29 +176,27 @@ export function enrichStepClientSide(steps: ExecutionStep[]): ExecutionStep[] {
     }
 
     const whatChangedText = changeSummaries.length > 0
-      ? changeSummaries.join('\n\n')
+      ? changeSummaries.join('\n')
       : 'No state changes in this step.';
 
-    let whatHappened = `Executing: ${codeTrim}`;
-    let whyItHappened = 'Python executed this line to update program state in memory.';
-    let whyDetails = `Line ${step.line}: '${codeTrim}' was evaluated by the runtime interpreter.`;
+    let whatHappened = `Executed statement: ${codeTrim}`;
+    let whyItHappened = `The ${runtimeName} evaluated this line according to ${langName} language semantics.`;
+    let whyDetails = `Line ${step.line}: '${codeTrim}' was evaluated in ${langName}.`;
 
     if (opType === 'ARRAY INSERTION') {
-      whatHappened = 'Appended new element to array.';
-      whyItHappened = 'The .append() function appends an item to the end of the list, incrementing its length.';
-      whyDetails = 'Python lists store elements sequentially in dynamic contiguous memory buffers. append() inserts at index len(arr) - 1.';
+      whatHappened = 'Added element to array/collection.';
+      whyItHappened = 'Inserts new item at the end of sequence, expanding its element count.';
+      whyDetails = `In ${langName}, collection insertion methods append elements to dynamic storage.`;
     } else if (opType === 'ARRAY UPDATE') {
-      whatHappened = 'Updated element at specified index.';
-      whyItHappened = 'Positional indexing overwrites the existing value at that memory position.';
-      whyDetails = 'Python lists use zero-based indexing:\n• Index 0 → 1st item\n• Index 1 → 2nd item\n• Index 2 → 3rd item\n\nAssigning to arr[i] replaces the value at index i.';
-    } else if (opType === 'CALCULATION / ASSIGNMENT') {
-      whatHappened = 'Calculated length or expression value.';
-      whyItHappened = 'Evaluates right-hand side calculation and binds the numeric result to target variable.';
-      whyDetails = 'len(arr) inspects the internal item counter of the object and evaluates to the total number of items.';
+      whatHappened = 'Updated element at target index.';
+      whyItHappened = 'Positional indexing overwrites the value stored at specified array offset.';
+      whyDetails = `In ${langName}, arrays use zero-based indexing for positional element modification.`;
     } else if (opType === 'VARIABLE CREATION') {
-      whatHappened = 'Created new variable.';
-      whyItHappened = 'Initializes symbol reference in variable lookup table bound to evaluated value.';
-      whyDetails = 'Variables are created on first assignment. Python manages memory automatically.';
+      whatHappened = 'Created new variable in active scope.';
+      whyItHappened = 'Binds variable identifier to evaluated expression value.';
+      whyDetails = lang === 'java'
+        ? 'In Java, variable declaration allocates stack storage and binds initial value.'
+        : 'In Python, assignments evaluate right-hand expressions and bind symbol references in active scope.';
     }
 
     const diff: ExecutionDiff = step.diff || {

@@ -14,7 +14,7 @@ export const WhyModal: React.FC<WhyModalProps> = ({ isOpen, onClose, currentStep
 
   const code = currentStep.code || '';
   const operationType = currentStep.operationType || 'EXECUTION';
-  const whyDetails = currentStep.whyDetails || currentStep.explanation?.whyItHappened || 'The Python interpreter evaluated this line step-by-step according to language semantics.';
+  const whyDetails = currentStep.whyDetails || currentStep.explanation?.whyItHappened || 'The runtime environment evaluated this line step-by-step according to language semantics.';
 
   return (
     <AnimatePresence>

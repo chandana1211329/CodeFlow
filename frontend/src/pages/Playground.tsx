@@ -92,7 +92,7 @@ count = len(arr)`;
       if (result.error) {
         setError(result.error);
       } else {
-        const enriched = enrichStepClientSide(result.steps || []);
+        const enriched = enrichStepClientSide(result.steps || [], language);
         setSteps(enriched);
         setCurrentStepIndex(0);
       }
